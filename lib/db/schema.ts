@@ -28,6 +28,8 @@ export const user = pgTable('user', {
     .notNull()
     .default('ACTIVE'),
   isDemo: boolean('isDemo').notNull().default(false),
+  // true para quien entró con Google y todavía no eligió si es PyME o contratista
+  needsRoleSelection: boolean('needsRoleSelection').notNull().default(false),
 })
 
 export const session = pgTable('session', {
