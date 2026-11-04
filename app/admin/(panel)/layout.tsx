@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { DashboardShell } from '@/components/dashboard-shell'
-import { requireRole } from '@/lib/session'
+import { requireRole } from '@/lib/auth/session'
 
 export const metadata: Metadata = { title: 'Administración' }
 
