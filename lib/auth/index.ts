@@ -74,5 +74,8 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 30,
     updateAge: 60 * 60 * 24,
   },
+  // El límite de intentos de Better Auth queda activo en producción; solo los tests E2E en CI
+  // (muchos logins seguidos desde una misma IP) lo desactivan con esta variable.
+  rateLimit: { enabled: process.env.E2E_DISABLE_RATE_LIMIT === '1' ? false : process.env.NODE_ENV === 'production' },
   plugins: [nextCookies()],
 })

@@ -12,6 +12,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/licity_ci
       BETTER_AUTH_SECRET: ci-secret-solo-para-pruebas-0123456789abcdef
       BETTER_AUTH_URL: http://localhost:3000
+      E2E_DISABLE_RATE_LIMIT: '1'
     services:
       postgres:
         image: postgres:17
