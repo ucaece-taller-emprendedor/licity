@@ -82,9 +82,12 @@ export function ConfirmForm({
   const [state, formAction, pending] = useActionState(action, {})
   const [open, setOpen] = useState(false)
 
-  useEffect(() => {
+  // Cierra el formulario cuando la acción termina bien (ajuste de estado durante el render).
+  const [lastState, setLastState] = useState(state)
+  if (state !== lastState) {
+    setLastState(state)
     if (state.ok) setOpen(false)
-  }, [state])
+  }
 
   return (
     <div className="flex flex-col gap-3">

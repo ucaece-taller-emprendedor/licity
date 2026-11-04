@@ -10,7 +10,6 @@ export const metadata: Metadata = {
   title: 'Licity | Tu obra, bajo control.',
   description:
     'Licity conecta PyMEs que necesitan una obra o reforma con contratistas verificados. Publicá gratis, compará ofertas y pagá cuando la obra esté terminada.',
-  generator: 'v0.app',
 }
 
 export const viewport: Viewport = {

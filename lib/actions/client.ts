@@ -16,7 +16,7 @@ import {
   works,
 } from '@/lib/db/schema'
 import { CAN_AWARD, CAN_CANCEL, COMMISSION_RATE, WORK_CATEGORIES } from '@/lib/constants'
-import { requireRoleForAction } from '@/lib/session'
+import { requireRoleForAction } from '@/lib/auth/session'
 import { notify } from '@/lib/notify'
 import { UNAUTHORIZED, type ActionState } from '@/lib/actions/types'
 
@@ -79,8 +79,8 @@ export async function createWork(_prev: ActionState, formData: FormData): Promis
     message: 'Obra publicada.',
   })
 
-  revalidatePath('/client', 'layout')
-  redirect(`/client/obras/${work.id}`)
+  revalidatePath('/app/pyme', 'layout')
+  redirect(`/app/pyme/obras/${work.id}`)
 }
 
 export async function updateWork(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -114,8 +114,8 @@ export async function updateWork(_prev: ActionState, formData: FormData): Promis
   if (updated.length === 0) {
     return { error: 'Solo podés editar una obra que todavía no recibió ofertas.' }
   }
-  revalidatePath('/client', 'layout')
-  redirect(`/client/obras/${id.data}`)
+  revalidatePath('/app/pyme', 'layout')
+  redirect(`/app/pyme/obras/${id.data}`)
 }
 
 export async function startEvaluation(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -143,7 +143,7 @@ export async function startEvaluation(_prev: ActionState, formData: FormData): P
     toStatus: 'EVALUATING',
     message: 'La PyME inició la evaluación de ofertas.',
   })
-  revalidatePath('/client', 'layout')
+  revalidatePath('/app/pyme', 'layout')
   return { ok: true, message: 'Evaluación iniciada. Ya no se aceptan ofertas nuevas.' }
 }
 
@@ -216,7 +216,7 @@ export async function acceptOffer(_prev: ActionState, formData: FormData): Promi
         {
           title: 'Oferta no seleccionada',
           body: `La obra "${work.title}" fue adjudicada a otro contratista.`,
-          href: `/business/obras/${work.id}`,
+          href: `/app/contratista/obras/${work.id}`,
         },
         tx,
       )
@@ -226,14 +226,14 @@ export async function acceptOffer(_prev: ActionState, formData: FormData): Promi
       {
         title: 'Te adjudicaron una obra',
         body: `"${work.title}" fue adjudicada a tu oferta. Ya podés iniciar la ejecución.`,
-        href: `/business/obras/${work.id}`,
+        href: `/app/contratista/obras/${work.id}`,
       },
       tx,
     )
     return { ok: true, message: 'Obra adjudicada.', workId: work.id }
   })
 
-  if (result.ok) revalidatePath('/client', 'layout')
+  if (result.ok) revalidatePath('/app/pyme', 'layout')
   return { ok: result.ok, error: result.error, message: result.message }
 }
 
@@ -285,14 +285,14 @@ export async function cancelWork(_prev: ActionState, formData: FormData): Promis
     for (const o of affected) {
       await notify(
         o.contractorUserId,
-        { title: 'Obra cancelada', body: `La PyME canceló "${work.title}".`, href: `/business/obras/${work.id}` },
+        { title: 'Obra cancelada', body: `La PyME canceló "${work.title}".`, href: `/app/contratista/obras/${work.id}` },
         tx,
       )
     }
     return { ok: true, message: 'Obra cancelada.' }
   })
 
-  if (outcome.ok) revalidatePath('/client', 'layout')
+  if (outcome.ok) revalidatePath('/app/pyme', 'layout')
   return outcome
 }
 
@@ -348,13 +348,13 @@ export async function confirmCompletion(_prev: ActionState, formData: FormData):
     })
     await notify(
       award.contractorUserId,
-      { title: 'Obra finalizada', body: `La PyME confirmó la finalización de "${work.title}".`, href: `/business/obras/${work.id}` },
+      { title: 'Obra finalizada', body: `La PyME confirmó la finalización de "${work.title}".`, href: `/app/contratista/obras/${work.id}` },
       tx,
     )
     return { ok: true, message: 'Obra finalizada. Registramos el pago y la comisión.' }
   })
 
-  if (outcome.ok) revalidatePath('/client', 'layout')
+  if (outcome.ok) revalidatePath('/app/pyme', 'layout')
   return outcome
 }
 
@@ -389,6 +389,6 @@ export async function updateClientProfile(_prev: ActionState, formData: FormData
       updatedAt: new Date(),
     })
     .where(eq(clientProfiles.userId, me.id))
-  revalidatePath('/client', 'layout')
+  revalidatePath('/app/pyme', 'layout')
   return { ok: true, message: 'Perfil actualizado.' }
 }

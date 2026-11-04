@@ -13,7 +13,7 @@ import {
   works,
 } from '@/lib/db/schema'
 import { OPEN_FOR_OFFERS } from '@/lib/constants'
-import { requireRoleForAction } from '@/lib/session'
+import { requireRoleForAction } from '@/lib/auth/session'
 import { notify } from '@/lib/notify'
 import { UNAUTHORIZED, type ActionState } from '@/lib/actions/types'
 
@@ -101,14 +101,14 @@ export async function submitOffer(_prev: ActionState, formData: FormData): Promi
       {
         title: 'Nueva oferta recibida',
         body: `${profile.displayName} ofertó en "${work.title}".`,
-        href: `/client/obras/${work.id}`,
+        href: `/app/pyme/obras/${work.id}`,
       },
       tx,
     )
     return { ok: true, message: 'Oferta enviada.' }
   })
 
-  if (outcome.ok) revalidatePath('/business', 'layout')
+  if (outcome.ok) revalidatePath('/app/contratista', 'layout')
   return outcome
 }
 
@@ -143,7 +143,7 @@ export async function withdrawOffer(_prev: ActionState, formData: FormData): Pro
     return { ok: true, message: 'Oferta retirada.' }
   })
 
-  if (outcome.ok) revalidatePath('/business', 'layout')
+  if (outcome.ok) revalidatePath('/app/contratista', 'layout')
   return outcome
 }
 
@@ -186,9 +186,9 @@ export async function startWork(_prev: ActionState, formData: FormData): Promise
   await notify(work.clientUserId, {
     title: 'Tu obra comenzó',
     body: `${ctx.profile.displayName} inició "${work.title}".`,
-    href: `/client/obras/${work.id}`,
+    href: `/app/pyme/obras/${work.id}`,
   })
-  revalidatePath('/business', 'layout')
+  revalidatePath('/app/contratista', 'layout')
   return { ok: true, message: 'Obra iniciada.' }
 }
 
@@ -229,9 +229,9 @@ export async function postProgress(_prev: ActionState, formData: FormData): Prom
   await notify(work.clientUserId, {
     title: 'Nuevo avance de obra',
     body: `"${work.title}" va al ${d.progress}%.`,
-    href: `/client/obras/${work.id}`,
+    href: `/app/pyme/obras/${work.id}`,
   })
-  revalidatePath('/business', 'layout')
+  revalidatePath('/app/contratista', 'layout')
   return { ok: true, message: 'Avance registrado.' }
 }
 
@@ -263,9 +263,9 @@ export async function markDone(_prev: ActionState, formData: FormData): Promise<
   await notify(work.clientUserId, {
     title: 'Confirmá la finalización',
     body: `${ctx.profile.displayName} terminó "${work.title}". Revisala y confirmá para cerrar la obra.`,
-    href: `/client/obras/${work.id}`,
+    href: `/app/pyme/obras/${work.id}`,
   })
-  revalidatePath('/business', 'layout')
+  revalidatePath('/app/contratista', 'layout')
   return { ok: true, message: 'Marcaste la obra como terminada. La PyME debe confirmarla.' }
 }
 
@@ -286,7 +286,7 @@ export async function reportWork(_prev: ActionState, formData: FormData): Promis
     .where(and(eq(works.id, parsed.data.workId), sql`${works.reportedAt} is null`))
     .returning({ id: works.id })
   if (updated.length === 0) return { error: 'Esta obra ya fue reportada o no existe.' }
-  revalidatePath('/business', 'layout')
+  revalidatePath('/app/contratista', 'layout')
   revalidatePath('/admin', 'layout')
   return { ok: true, message: 'Reporte enviado al equipo de Licity.' }
 }
@@ -328,11 +328,11 @@ export async function updateContractorProfile(_prev: ActionState, formData: Form
       updatedAt: new Date(),
     })
     .where(eq(contractorProfiles.userId, ctx.me.id))
-  revalidatePath('/business', 'layout')
+  revalidatePath('/app/contratista', 'layout')
   return { ok: true, message: 'Perfil actualizado.' }
 }
 
-export async function resubmitVerification(_prev: ActionState, _formData: FormData): Promise<ActionState> {
+export async function resubmitVerification(): Promise<ActionState> {
   let ctx
   try {
     ctx = await currentContractor()
@@ -357,7 +357,7 @@ export async function resubmitVerification(_prev: ActionState, _formData: FormDa
       },
     })
   })
-  revalidatePath('/business', 'layout')
+  revalidatePath('/app/contratista', 'layout')
   revalidatePath('/admin', 'layout')
   return { ok: true, message: 'Enviamos tu perfil a revisión nuevamente.' }
 }

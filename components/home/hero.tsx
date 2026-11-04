@@ -24,11 +24,11 @@ export function Hero() {
             en una misma pantalla. Pagás recién cuando la obra está terminada.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link href="/registro/pyme" className="btn-primary">
+            <Link href="/app/registro/pyme" className="btn-primary">
               Publicá tu obra gratis
               <ArrowRight className="size-5" aria-hidden="true" />
             </Link>
-            <Link href="/registro/contratista" className="btn-outline">
+            <Link href="/app/registro/contratista" className="btn-outline">
               Soy contratista
             </Link>
           </div>

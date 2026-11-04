@@ -4,10 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
-import { authClient } from '@/lib/auth-client'
+import { authClient } from '@/lib/auth/client'
 import { Field } from '@/components/field'
+import { GoogleButton, OrDivider } from '@/components/auth/google-button'
 
-export function LoginForm({ notice }: { notice?: string }) {
+export function LoginForm({ notice, googleEnabled }: { notice?: string; googleEnabled: boolean }) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -26,7 +27,7 @@ export function LoginForm({ notice }: { notice?: string }) {
       setPending(false)
       return
     }
-    router.push('/entrar')
+    router.push('/app')
     router.refresh()
   }
 
@@ -37,6 +38,8 @@ export function LoginForm({ notice }: { notice?: string }) {
           {notice}
         </p>
       )}
+      <GoogleButton enabled={googleEnabled} />
+      <OrDivider />
       <Field name="email" label="Correo electrónico" type="email" autoComplete="email" required />
       <Field
         name="password"
@@ -54,7 +57,7 @@ export function LoginForm({ notice }: { notice?: string }) {
         {pending && <Loader2 className="size-5 animate-spin" aria-hidden="true" />}
         {pending ? 'Ingresando…' : 'Ingresar'}
       </button>
-      <Link href="/recuperar" className="text-center text-sm font-bold text-marron underline underline-offset-4">
+      <Link href="/app/recuperar" className="text-center text-sm font-bold text-marron underline underline-offset-4">
         Olvidé mi contraseña
       </Link>
     </form>

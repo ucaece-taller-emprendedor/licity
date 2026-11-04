@@ -16,10 +16,10 @@ export function FinalCta() {
             </p>
           </div>
           <div className="flex flex-col gap-3 md:items-end">
-            <Link href="/registro/pyme" className="btn-primary w-full md:w-auto">
+            <Link href="/app/registro/pyme" className="btn-primary w-full md:w-auto">
               ¡Empezá ahora!
             </Link>
-            <Link href="/ingresar" className="btn-outline w-full md:w-auto">
+            <Link href="/app/ingresar" className="btn-outline w-full md:w-auto">
               Ya tengo cuenta
             </Link>
           </div>

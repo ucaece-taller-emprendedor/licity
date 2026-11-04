@@ -4,7 +4,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { notifications } from '@/lib/db/schema'
-import { getCurrentUser } from '@/lib/session'
+import { getCurrentUser } from '@/lib/auth/session'
 import type { ActionState } from '@/lib/actions/types'
 
 export async function markNotificationsRead(): Promise<ActionState> {
