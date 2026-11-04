@@ -1,4 +1,4 @@
-import { requireRole } from '@/lib/session'
+import { requireRole } from '@/lib/auth/session'
 import { PageHeader, Section } from '@/components/ui-kit'
 import { WorkForm } from '@/components/client/work-form'
 

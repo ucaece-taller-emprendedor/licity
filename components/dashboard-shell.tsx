@@ -4,7 +4,7 @@ import { DashboardNav, type NavItem } from '@/components/dashboard-nav'
 import { SignOutButton } from '@/components/sign-out-button'
 import { Badge } from '@/components/ui-kit'
 import { ROLE_LABEL } from '@/lib/constants'
-import type { CurrentUser } from '@/lib/session'
+import type { CurrentUser } from '@/lib/auth/session'
 
 export function DashboardShell({
   user,

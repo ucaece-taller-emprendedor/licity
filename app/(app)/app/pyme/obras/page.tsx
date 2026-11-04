@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { desc, eq, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { offers, works } from '@/lib/db/schema'
-import { requireRole } from '@/lib/session'
+import { requireRole } from '@/lib/auth/session'
 import { Badge, EmptyState, PageHeader } from '@/components/ui-kit'
 import { WORK_STATUS } from '@/lib/constants'
 import { formatDate, formatMoney } from '@/lib/format'
@@ -26,7 +26,7 @@ export default async function ClientWorksPage() {
         title="Mis obras"
         description="Todas las obras que publicaste en Licity."
         action={
-          <Link href="/client/obras/nueva" className="btn-primary">
+          <Link href="/app/pyme/obras/nueva" className="btn-primary">
             Publicar obra
           </Link>
         }
@@ -35,7 +35,7 @@ export default async function ClientWorksPage() {
         <EmptyState
           title="Todavía no publicaste obras"
           text="Cuando publiques una obra, los contratistas verificados podrán enviarte ofertas."
-          href="/client/obras/nueva"
+          href="/app/pyme/obras/nueva"
           actionLabel="Publicar mi primera obra"
         />
       ) : (
@@ -43,7 +43,7 @@ export default async function ClientWorksPage() {
           {rows.map(({ work, offerCount }) => (
             <li key={work.id}>
               <Link
-                href={`/client/obras/${work.id}`}
+                href={`/app/pyme/obras/${work.id}`}
                 className="card flex flex-col gap-3 p-5 transition-colors hover:border-marron sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>

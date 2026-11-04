@@ -20,9 +20,9 @@ export function SiteFooter() {
           <h2 className="font-display text-xl uppercase tracking-wide text-crema-claro">Explorá</h2>
           <ul className="mt-3 space-y-1 text-sm">
             {[
-              ['/registro/pyme', 'Soy PyME: publicar una obra'],
-              ['/registro/contratista', 'Soy contratista'],
-              ['/ingresar', 'Ingresar'],
+              ['/app/registro/pyme', 'Soy PyME: publicar una obra'],
+              ['/app/registro/contratista', 'Soy contratista'],
+              ['/app/ingresar', 'Ingresar'],
               ['/terminos', 'Términos y condiciones'],
               ['/privacidad', 'Política de privacidad'],
             ].map(([href, label]) => (

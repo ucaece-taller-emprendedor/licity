@@ -13,7 +13,7 @@ import {
   workUpdates,
   works,
 } from '@/lib/db/schema'
-import { requireRoleForAction } from '@/lib/session'
+import { requireRoleForAction } from '@/lib/auth/session'
 import { notify } from '@/lib/notify'
 import { UNAUTHORIZED, type ActionState } from '@/lib/actions/types'
 
@@ -62,8 +62,8 @@ export async function reviewVerification(_prev: ActionState, formData: FormData)
     await notify(
       request.contractorUserId,
       d.decision === 'APPROVED'
-        ? { title: 'Tu cuenta fue verificada', body: 'Ya podés enviar ofertas.', href: '/business/obras' }
-        : { title: 'Verificación rechazada', body: d.reason, href: '/business/perfil' },
+        ? { title: 'Tu cuenta fue verificada', body: 'Ya podés enviar ofertas.', href: '/app/contratista/obras' }
+        : { title: 'Verificación rechazada', body: d.reason, href: '/app/contratista/perfil' },
       tx,
     )
     return {
@@ -157,13 +157,13 @@ export async function adminCancelWork(_prev: ActionState, formData: FormData): P
     await notify(work.clientUserId, {
       title: 'Obra cancelada por Licity',
       body: parsed.data.reason,
-      href: `/client/obras/${work.id}`,
+      href: `/app/pyme/obras/${work.id}`,
     }, tx)
     for (const o of affected) {
       await notify(o.contractorUserId, {
         title: 'Obra cancelada por Licity',
         body: `"${work.title}": ${parsed.data.reason}`,
-        href: `/business/obras/${work.id}`,
+        href: `/app/contratista/obras/${work.id}`,
       }, tx)
     }
     return { ok: true, message: 'Obra cancelada.' }

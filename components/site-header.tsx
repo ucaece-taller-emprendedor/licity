@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { cn } from '@/lib/utils'
@@ -10,16 +10,19 @@ import { cn } from '@/lib/utils'
 const links = [
   { href: '/', label: 'Inicio' },
   { href: '/#como-funciona', label: 'Cómo funciona' },
-  { href: '/registro/contratista', label: 'Soy contratista' },
+  { href: '/app/registro/contratista', label: 'Soy contratista' },
 ]
 
 export function SiteHeader({ dashboardHref }: { dashboardHref: string | null }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
 
-  useEffect(() => {
+  // Cierra el menú móvil al navegar (ajuste de estado durante el render).
+  const [lastPath, setLastPath] = useState(pathname)
+  if (pathname !== lastPath) {
+    setLastPath(pathname)
     setOpen(false)
-  }, [pathname])
+  }
 
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname === href)
 
@@ -53,11 +56,11 @@ export function SiteHeader({ dashboardHref }: { dashboardHref: string | null }) 
             </Link>
           ) : (
             <>
-              <Link href="/ingresar" className="btn-outline hidden !min-h-11 sm:inline-flex">
+              <Link href="/app/ingresar" className="btn-outline hidden !min-h-11 sm:inline-flex">
                 Ingresar
               </Link>
-              <Link href="/registro" className="btn-primary hidden !min-h-11 sm:inline-flex">
-                Registrate gratis
+              <Link href="/app/registro" className="btn-primary hidden !min-h-11 sm:inline-flex">
+                Registrarme
               </Link>
             </>
           )}
@@ -102,10 +105,10 @@ export function SiteHeader({ dashboardHref }: { dashboardHref: string | null }) 
                 </Link>
               ) : (
                 <>
-                  <Link href="/registro" className="btn-primary w-full">
-                    Registrate gratis
+                  <Link href="/app/registro" className="btn-primary w-full">
+                    Registrarme
                   </Link>
-                  <Link href="/ingresar" className="btn-outline w-full">
+                  <Link href="/app/ingresar" className="btn-outline w-full">
                     Ingresar
                   </Link>
                 </>

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { offers, works } from '@/lib/db/schema'
-import { requireRole } from '@/lib/session'
+import { requireRole } from '@/lib/auth/session'
 import { PageHeader, StatCard, Section, Badge, EmptyState } from '@/components/ui-kit'
 import { NotificationsCard } from '@/components/notifications-card'
 import { WORK_STATUS } from '@/lib/constants'
@@ -40,7 +40,7 @@ export default async function ClientHome() {
         title={`Hola, ${me.name.split(' ')[0]}`}
         description="Seguí tus obras, compará ofertas y elegí a tu contratista."
         action={
-          <Link href="/client/obras/nueva" className="btn-primary">
+          <Link href="/app/pyme/obras/nueva" className="btn-primary">
             Publicar obra
           </Link>
         }
@@ -56,7 +56,7 @@ export default async function ClientHome() {
         <Section
           title="Obras recientes"
           action={
-            <Link href="/client/obras" className="text-sm font-bold text-marron underline underline-offset-4">
+            <Link href="/app/pyme/obras" className="text-sm font-bold text-marron underline underline-offset-4">
               Ver todas
             </Link>
           }
@@ -65,7 +65,7 @@ export default async function ClientHome() {
             <EmptyState
               title="Todavía no publicaste obras"
               text="Publicá tu primera obra y empezá a recibir ofertas de contratistas verificados."
-              href="/client/obras/nueva"
+              href="/app/pyme/obras/nueva"
               actionLabel="Publicar obra"
             />
           ) : (
@@ -73,7 +73,7 @@ export default async function ClientHome() {
               {recent.map((w) => (
                 <li key={w.id}>
                   <Link
-                    href={`/client/obras/${w.id}`}
+                    href={`/app/pyme/obras/${w.id}`}
                     className="flex flex-wrap items-center justify-between gap-2 py-3 hover:bg-muted/50"
                   >
                     <div>

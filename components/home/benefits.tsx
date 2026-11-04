@@ -51,7 +51,7 @@ export function Benefits() {
             <p className="text-sm font-bold uppercase tracking-wider text-terracota-strong">Para PyMEs</p>
             <h3 className="mt-2 text-3xl sm:text-4xl">Obras sin vueltas</h3>
             <BenefitList items={pymes} tone="light" />
-            <Link href="/registro/pyme" className="btn-primary mt-8">
+            <Link href="/app/registro/pyme" className="btn-primary mt-8">
               Publicá tu obra gratis
             </Link>
           </article>
@@ -60,7 +60,7 @@ export function Benefits() {
             <p className="text-sm font-bold uppercase tracking-wider text-mostaza">Para contratistas</p>
             <h3 className="mt-2 text-3xl sm:text-4xl">Más obras, mejor pagas</h3>
             <BenefitList items={contratistas} tone="dark" />
-            <Link href="/registro/contratista" className="btn-mostaza mt-8">
+            <Link href="/app/registro/contratista" className="btn-mostaza mt-8">
               Registrate como contratista
             </Link>
           </article>

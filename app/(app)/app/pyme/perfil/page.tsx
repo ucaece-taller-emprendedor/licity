@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { clientProfiles } from '@/lib/db/schema'
-import { requireRole } from '@/lib/session'
+import { requireRole } from '@/lib/auth/session'
 import { PageHeader, Section, Notice } from '@/components/ui-kit'
 import { ActionForm } from '@/components/action-form'
 import { Field } from '@/components/field'

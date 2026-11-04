@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { and, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { awards, contractorProfiles, payments, works } from '@/lib/db/schema'
-import { requireRole } from '@/lib/session'
+import { requireRole } from '@/lib/auth/session'
 import { getOffersWithContractors } from '@/lib/queries'
 import { Badge, DefinitionList, Notice, PageHeader, Section } from '@/components/ui-kit'
 import { ConfirmForm } from '@/components/action-form'
@@ -66,7 +66,7 @@ export default async function ClientWorkPage({ params }: { params: Promise<{ id:
               ]}
             />
             {work.status === 'PUBLISHED' && (
-              <Link href={`/client/obras/${work.id}/editar`} className="btn-outline mt-5">
+              <Link href={`/app/pyme/obras/${work.id}/editar`} className="btn-outline mt-5">
                 Editar obra
               </Link>
             )}

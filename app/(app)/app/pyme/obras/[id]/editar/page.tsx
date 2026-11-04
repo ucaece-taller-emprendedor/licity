@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { and, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { works } from '@/lib/db/schema'
-import { requireRole } from '@/lib/session'
+import { requireRole } from '@/lib/auth/session'
 import { PageHeader, Section } from '@/components/ui-kit'
 import { WorkForm } from '@/components/client/work-form'
 
@@ -17,7 +17,7 @@ export default async function EditWorkPage({ params }: { params: Promise<{ id: s
     .from(works)
     .where(and(eq(works.id, id), eq(works.clientUserId, me.id)))
   if (!work) notFound()
-  if (work.status !== 'PUBLISHED') redirect(`/client/obras/${work.id}`)
+  if (work.status !== 'PUBLISHED') redirect(`/app/pyme/obras/${work.id}`)
 
   return (
     <>
