@@ -51,15 +51,15 @@ export function SiteHeader({ dashboardHref }: { dashboardHref: string | null }) 
 
         <div className="flex items-center gap-2">
           {dashboardHref ? (
-            <Link href={dashboardHref} className="btn-primary hidden !min-h-11 sm:inline-flex">
+            <Link href={dashboardHref} className="btn-primary !min-h-11 !px-4 !text-sm sm:!px-6 sm:!text-base">
               Ir a mi panel
             </Link>
           ) : (
             <>
-              <Link href="/app/ingresar" className="btn-outline hidden !min-h-11 sm:inline-flex">
+              <Link href="/app/ingresar" className="btn-outline !min-h-11 !px-3 !text-sm sm:!px-6 sm:!text-base">
                 Ingresar
               </Link>
-              <Link href="/app/registro" className="btn-primary hidden !min-h-11 sm:inline-flex">
+              <Link href="/app/registro" className="btn-primary !min-h-11 !px-3 !text-sm sm:!px-6 sm:!text-base">
                 Registrarme
               </Link>
             </>
