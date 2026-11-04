@@ -14,3 +14,17 @@ __v0_jsx-dev-runtime.ts
 node_modules
 .next/
 .DS_Store
+
+# Variables de entorno: nunca se suben (solo .env.example)
+.env
+.env.*
+!.env.example
+
+# Dependencias y builds
+node_modules
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+npm-debug.log*
+.DS_Store
