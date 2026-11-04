@@ -17,7 +17,7 @@ export default function RecoverPage() {
           </a>{' '}
           y restablecemos tu acceso manualmente.
         </Notice>
-        <Link href="/ingresar" className="btn-outline">
+        <Link href="/app/ingresar" className="btn-outline">
           Volver a ingresar
         </Link>
       </div>

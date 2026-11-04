@@ -2,81 +2,77 @@ import { betterAuth } from 'better-auth'
 import { APIError } from 'better-auth/api'
 import { nextCookies } from 'better-auth/next-js'
 import { pool } from '@/lib/db'
+import { env, isAdminEmail } from '@/lib/env'
 
 export const auth = betterAuth({
   database: pool,
-  baseURL:
-    process.env.BETTER_AUTH_URL ??
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : process.env.V0_RUNTIME_URL),
+  secret: env.BETTER_AUTH_SECRET,
+  baseURL: env.BETTER_AUTH_URL,
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
     minPasswordLength: 8,
   },
+  // Google solo se habilita con credenciales reales; sin ellas no se registra el proveedor.
+  ...(env.GOOGLE_ENABLED
+    ? {
+        socialProviders: {
+          google: {
+            clientId: env.GOOGLE_CLIENT_ID as string,
+            clientSecret: env.GOOGLE_CLIENT_SECRET as string,
+            // Un usuario nuevo de Google tiene que elegir PyME o contratista antes de entrar al panel.
+            mapProfileToUser: () => ({ needsRoleSelection: true }),
+          },
+        },
+      }
+    : {}),
   user: {
     additionalFields: {
       role: { type: 'string', defaultValue: 'CLIENT', input: false },
       status: { type: 'string', defaultValue: 'ACTIVE', input: false },
       isDemo: { type: 'boolean', defaultValue: false, input: false },
+      needsRoleSelection: { type: 'boolean', defaultValue: false, input: false },
     },
   },
-  // Public registration goes through our server actions, which assign the role
-  // and create the profile atomically. The raw endpoint stays closed.
+  // El registro público pasa por nuestras server actions, que asignan el rol y crean
+  // el perfil en una sola transacción. El endpoint crudo queda cerrado.
   disabledPaths: ['/sign-up/email'],
   databaseHooks: {
+    user: {
+      create: {
+        before: async (newUser) => {
+          // Solo un correo verificado (Google) puede convertirse en SUPERADMIN vía ADMIN_EMAILS.
+          // El registro con contraseña nunca llega acá con emailVerified=true.
+          if (newUser.emailVerified && isAdminEmail(newUser.email)) {
+            return { data: { ...newUser, role: 'SUPERADMIN', needsRoleSelection: false } }
+          }
+          return { data: newUser }
+        },
+      },
+    },
     session: {
       create: {
-        before: async (session) => {
+        before: async (newSession) => {
           const { rows } = await pool.query<{ status: string }>(
             'SELECT status FROM "user" WHERE id = $1',
-            [session.userId],
+            [newSession.userId],
           )
           if (rows[0]?.status === 'SUSPENDED') {
             throw new APIError('FORBIDDEN', { message: 'ACCOUNT_SUSPENDED' })
           }
-          return { data: session }
+          return { data: newSession }
         },
       },
     },
   },
   trustedOrigins: [
-    ...(process.env.NODE_ENV === 'development'
-      ? [
-          'http://localhost:3000',
-          ...(process.env.V0_RUNTIME_URL ? [process.env.V0_RUNTIME_URL] : []),
-          ...(process.env.V0_DEV_APP_URL ? [process.env.V0_DEV_APP_URL] : []),
-          ...(process.env.V0_BUILD_URL ? [process.env.V0_BUILD_URL] : []),
-          ...(process.env.V0_SANDBOX_URL ? [process.env.V0_SANDBOX_URL] : []),
-        ]
-      : []),
-    ...(process.env.NODE_ENV === 'production'
-      ? [
-          ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
-          ...(process.env.VERCEL_PROJECT_PRODUCTION_URL
-            ? [`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`]
-            : []),
-        ]
-      : []),
+    env.BETTER_AUTH_URL,
+    ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000'] : []),
   ],
   session: {
-    expiresIn: 60 * 60 * 24 * 7,
+    // Sesión persistente: 30 días, renovada cada vez que se usa pasado 1 día.
+    expiresIn: 60 * 60 * 24 * 30,
     updateAge: 60 * 60 * 24,
   },
-  ...(process.env.NODE_ENV === 'development'
-    ? {
-        advanced: {
-          // Required by the cross-site v0 preview iframe. Without these
-          // attributes, login succeeds but the next request appears signed out.
-          defaultCookieAttributes: {
-            sameSite: 'none' as const,
-            secure: true,
-          },
-        },
-      }
-    : {}),
   plugins: [nextCookies()],
 })

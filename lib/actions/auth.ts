@@ -1,9 +1,10 @@
 'use server'
 
 import { eq } from 'drizzle-orm'
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { z } from 'zod'
 import { auth } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/auth/session'
 import { db } from '@/lib/db'
 import {
   clientProfiles,
@@ -11,65 +12,21 @@ import {
   user,
   verificationRequests,
 } from '@/lib/db/schema'
-import type { ActionState } from '@/lib/actions/types'
+import { isAdminEmail } from '@/lib/env'
+import { UNAUTHORIZED, type ActionState } from '@/lib/actions/types'
+import {
+  adminLoginSchema,
+  onboardClientSchema,
+  onboardContractorSchema,
+  registerClientSchema,
+  registerContractorSchema,
+} from '@/lib/validations/auth'
 
 const GENERIC_ERROR = 'No pudimos crear la cuenta con esos datos. Revisalos o ingresá si ya tenés una.'
 
-const text = (label: string, min = 2, max = 120) =>
-  z
-    .string({ error: `Completá ${label}.` })
-    .trim()
-    .min(min, `Completá ${label}.`)
-    .max(max, `${label} es demasiado largo.`)
-
-const optionalText = (max = 500) =>
-  z
-    .string()
-    .trim()
-    .max(max, 'El texto es demasiado largo.')
-    .optional()
-    .transform((v) => (v ? v : undefined))
-
-const cuit = z
-  .string({ error: 'Ingresá el CUIT.' })
-  .transform((v) => v.replace(/\D/g, ''))
-  .refine((v) => v.length === 11, 'El CUIT debe tener 11 dígitos.')
-
-const credentials = {
-  name: text('tu nombre', 2, 80),
-  email: z.string().trim().toLowerCase().email('Ingresá un correo válido.').max(160),
-  password: z
-    .string({ error: 'Ingresá una contraseña.' })
-    .min(8, 'La contraseña debe tener al menos 8 caracteres.')
-    .max(128, 'La contraseña es demasiado larga.'),
-  terms: z.literal('on', { error: 'Tenés que aceptar los términos y la política de privacidad.' }),
-}
-
-const clientSchema = z.object({
-  ...credentials,
-  companyName: text('el nombre de la empresa', 2, 120),
-  cuit: cuit.optional().or(z.literal('').transform(() => undefined)),
-  city: text('la ciudad', 2, 80),
-  phone: optionalText(40),
-})
-
-const contractorSchema = z.object({
-  ...credentials,
-  displayName: text('el nombre o razón social', 2, 120),
-  cuit,
-  specialty: text('la especialidad', 2, 80),
-  city: text('la ciudad', 2, 80),
-  coverageZone: optionalText(160),
-  yearsExperience: z
-    .string()
-    .optional()
-    .transform((v) => (v ? Number(v) : undefined))
-    .refine((v) => v === undefined || (Number.isInteger(v) && v >= 0 && v <= 80), 'Los años de experiencia deben estar entre 0 y 80.'),
-  description: optionalText(1000),
-  phone: optionalText(40),
-})
-
 async function createAccount(name: string, email: string, password: string) {
+  // Los correos de ADMIN_EMAILS no se pueden registrar por el flujo público.
+  if (isAdminEmail(email)) return null
   const existing = await db.query.user.findFirst({ where: eq(user.email, email) })
   if (existing) return null
   try {
@@ -80,64 +37,141 @@ async function createAccount(name: string, email: string, password: string) {
   }
 }
 
+type ClientData = { companyName: string; cuit?: string; city: string; phone?: string }
+type ContractorData = {
+  displayName: string
+  cuit: string
+  specialty: string
+  city: string
+  coverageZone?: string
+  yearsExperience?: number
+  description?: string
+  phone?: string
+}
+
+async function saveClientProfile(userId: string, d: ClientData) {
+  await db.transaction(async (tx) => {
+    await tx.update(user).set({ role: 'CLIENT', needsRoleSelection: false }).where(eq(user.id, userId))
+    await tx.insert(clientProfiles).values({
+      userId,
+      companyName: d.companyName,
+      cuit: d.cuit,
+      city: d.city,
+      phone: d.phone,
+    })
+  })
+}
+
+async function saveContractorProfile(userId: string, d: ContractorData) {
+  await db.transaction(async (tx) => {
+    await tx.update(user).set({ role: 'BUSINESS', needsRoleSelection: false }).where(eq(user.id, userId))
+    await tx.insert(contractorProfiles).values({
+      userId,
+      displayName: d.displayName,
+      cuit: d.cuit,
+      specialty: d.specialty,
+      city: d.city,
+      coverageZone: d.coverageZone,
+      yearsExperience: d.yearsExperience,
+      description: d.description,
+      phone: d.phone,
+    })
+    // El contratista queda pendiente hasta que un admin lo aprueba.
+    await tx.insert(verificationRequests).values({
+      contractorUserId: userId,
+      snapshot: { displayName: d.displayName, cuit: d.cuit, specialty: d.specialty, city: d.city },
+    })
+  })
+}
+
 export async function registerClient(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const parsed = clientSchema.safeParse(Object.fromEntries(formData))
+  const parsed = registerClientSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { error: parsed.error.issues[0].message }
   const d = parsed.data
 
   const userId = await createAccount(d.name, d.email, d.password)
   if (!userId) return { error: GENERIC_ERROR }
-
   try {
-    await db.transaction(async (tx) => {
-      await tx.update(user).set({ role: 'CLIENT' }).where(eq(user.id, userId))
-      await tx.insert(clientProfiles).values({
-        userId,
-        companyName: d.companyName,
-        cuit: d.cuit,
-        city: d.city,
-        phone: d.phone,
-      })
-    })
+    await saveClientProfile(userId, d)
   } catch {
     await db.delete(user).where(eq(user.id, userId))
     return { error: GENERIC_ERROR }
   }
-
-  redirect('/client')
+  redirect('/app/pyme')
 }
 
 export async function registerContractor(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const parsed = contractorSchema.safeParse(Object.fromEntries(formData))
+  const parsed = registerContractorSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { error: parsed.error.issues[0].message }
   const d = parsed.data
 
   const userId = await createAccount(d.name, d.email, d.password)
   if (!userId) return { error: GENERIC_ERROR }
-
   try {
-    await db.transaction(async (tx) => {
-      await tx.update(user).set({ role: 'BUSINESS' }).where(eq(user.id, userId))
-      await tx.insert(contractorProfiles).values({
-        userId,
-        displayName: d.displayName,
-        cuit: d.cuit,
-        specialty: d.specialty,
-        city: d.city,
-        coverageZone: d.coverageZone,
-        yearsExperience: d.yearsExperience,
-        description: d.description,
-        phone: d.phone,
-      })
-      await tx.insert(verificationRequests).values({
-        contractorUserId: userId,
-        snapshot: { displayName: d.displayName, cuit: d.cuit, specialty: d.specialty, city: d.city },
-      })
-    })
+    await saveContractorProfile(userId, d)
   } catch {
     await db.delete(user).where(eq(user.id, userId))
     return { error: GENERIC_ERROR }
   }
+  redirect('/app/contratista')
+}
 
-  redirect('/business')
+/** Paso obligatorio para quien entra con Google por primera vez: elegir PyME o contratista. */
+async function pendingOnboardingUser() {
+  const me = await getCurrentUser()
+  if (!me || me.role !== 'CLIENT' || !me.needsRoleSelection) throw new Error('UNAUTHORIZED')
+  return me
+}
+
+export async function onboardClient(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  let me
+  try {
+    me = await pendingOnboardingUser()
+  } catch {
+    return UNAUTHORIZED
+  }
+  const parsed = onboardClientSchema.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+  try {
+    await saveClientProfile(me.id, parsed.data)
+  } catch {
+    return { error: 'No pudimos guardar tus datos. Probá de nuevo.' }
+  }
+  redirect('/app/pyme')
+}
+
+export async function onboardContractor(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  let me
+  try {
+    me = await pendingOnboardingUser()
+  } catch {
+    return UNAUTHORIZED
+  }
+  const parsed = onboardContractorSchema.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+  try {
+    await saveContractorProfile(me.id, parsed.data)
+  } catch {
+    return { error: 'No pudimos guardar tus datos. Probá de nuevo.' }
+  }
+  redirect('/app/contratista')
+}
+
+const ADMIN_LOGIN_ERROR = 'Credenciales inválidas o sin permiso de administración.'
+
+/** Login del panel /admin: no crea cuentas y solo deja pasar a SUPERADMIN activos. */
+export async function loginAdmin(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = adminLoginSchema.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { error: ADMIN_LOGIN_ERROR }
+  const { email, password } = parsed.data
+
+  const target = await db.query.user.findFirst({ where: eq(user.email, email) })
+  if (!target || target.role !== 'SUPERADMIN' || target.status !== 'ACTIVE') return { error: ADMIN_LOGIN_ERROR }
+
+  try {
+    await auth.api.signInEmail({ body: { email, password }, headers: await headers() })
+  } catch {
+    return { error: ADMIN_LOGIN_ERROR }
+  }
+  redirect('/admin')
 }

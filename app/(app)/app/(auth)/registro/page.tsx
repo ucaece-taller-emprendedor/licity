@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight, Building2, HardHat } from 'lucide-react'
+import { GoogleButton } from '@/components/auth/google-button'
+import { env } from '@/lib/env'
 
 export const metadata: Metadata = {
   title: 'Crear cuenta',
@@ -9,13 +11,13 @@ export const metadata: Metadata = {
 
 const options = [
   {
-    href: '/registro/pyme',
+    href: '/app/registro/pyme',
     icon: Building2,
     title: 'Soy PyME',
     text: 'Publicá tu obra, recibí ofertas de contratistas verificados y elegí la mejor.',
   },
   {
-    href: '/registro/contratista',
+    href: '/app/registro/contratista',
     icon: HardHat,
     title: 'Soy contratista',
     text: 'Encontrá obras de PyMEs, enviá ofertas y hacé crecer tu negocio.',
@@ -41,9 +43,15 @@ export default function RegisterPage() {
           </li>
         ))}
       </ul>
+      <div className="mt-8 max-w-sm">
+        <GoogleButton enabled={env.GOOGLE_ENABLED} label="Registrarme con Google" />
+        <p className="mt-2 text-xs text-marron-suave">
+          Con Google, después te preguntamos si sos PyME o contratista.
+        </p>
+      </div>
       <p className="mt-8 text-sm text-marron-suave">
         ¿Ya tenés cuenta?{' '}
-        <Link href="/ingresar" className="font-bold text-marron underline underline-offset-4">
+        <Link href="/app/ingresar" className="font-bold text-marron underline underline-offset-4">
           Ingresá
         </Link>
       </p>
