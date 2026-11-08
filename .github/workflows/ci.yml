@@ -1,9 +1,12 @@
 name: CI
 
+# Calidad: lint, build, tests de reglas y Playwright contra emuladores.
+# Corre en los PR, en pushes a ramas de trabajo y es llamado por deploy.yml antes de publicar.
 on:
   pull_request:
   push:
-    branches-ignore: [main] # en main corre el despliegue, que también valida
+    branches-ignore: [prod, qa] # en prod y qa corre deploy.yml, que llama a este mismo workflow
+  workflow_call:
 
 jobs:
   calidad:

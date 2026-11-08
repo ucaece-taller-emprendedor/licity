@@ -4,6 +4,8 @@ Marketplace B2B de licitación de obras: la **PyME** publica su obra, **contrati
 
 - Sitio publicado (cuando se despliegue): https://licity-mdp.web.app · Proyecto Firebase: `licity-mdp`
 
+> **Trabajar con una IA / traspaso:** [`CLAUDE.md`](CLAUDE.md) · [`docs/TRABAJAR-CON-IA.md`](docs/TRABAJAR-CON-IA.md) · [`docs/INSTRUCTIVO-SETUP.md`](docs/INSTRUCTIVO-SETUP.md) · [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)
+
 ## Qué incluye
 
 | Parte | Ruta | Descripción |
@@ -97,7 +99,7 @@ Para que el workflow funcione el responsable del proyecto configura **una sola v
 2. El id del proyecto ya está en `.firebaserc` (`licity-mdp`).
 3. Subir las reglas: `npx firebase deploy --only firestore:rules,firestore:indexes` (o `npm run deploy:reglas`).
 4. Conectar GitHub ↔ Hosting **una sola vez**: `npx firebase init hosting:github` (crea la cuenta de servicio y carga el secreto `FIREBASE_SERVICE_ACCOUNT_...` en GitHub; **no se crea ni se sube a mano**). Ajustar el nombre del secreto en `.github/workflows/deploy.yml` si hace falta.
-5. Desde ahí, **cada merge a `main` publica la web** (`.github/workflows/deploy.yml`). Las reglas se vuelven a desplegar con el paso 3 cuando cambian.
+5. Desde ahí, **cada merge a `prod` publica la web (y `qa` publica una vista previa)** (`.github/workflows/deploy.yml`). Las reglas se vuelven a desplegar con el paso 3 cuando cambian.
 6. En Authentication → Configuración → Dominios autorizados, verificar que figure el dominio `.web.app` del sitio (para el login con Google).
 
 CI (`.github/workflows/ci.yml`): en cada PR corre lint, build, tests de reglas y Playwright contra emuladores.

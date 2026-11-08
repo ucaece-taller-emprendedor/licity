@@ -1,41 +1,58 @@
-name: Desplegar a Firebase Hosting
+name: Desplegar
 
-# Al hacer merge a main se publica el sitio (Firebase Hosting, plan Spark: gratis, sin tarjeta).
+# prod → publica el sitio (Firebase Hosting) y las reglas/índices de Firestore.
+# qa   → publica una VISTA PREVIA en el canal "qa" de Hosting (dura 30 días; comparte base de datos con prod).
 #
-# SECRETO NECESARIO: FIREBASE_SERVICE_ACCOUNT  (con el nombre exacto que le ponga la CLI)
-#   Lo crea y lo carga en GitHub automáticamente el comando:
-#       firebase init hosting:github
-#   (lo corre UNA vez el responsable del proyecto; no se crea ni se sube a mano).
-#   Ese comando también puede generar su propio workflow; si pasa, dejá este archivo y
-#   ajustá el nombre del secreto abajo para que coincida.
-#
-# Las reglas de Firestore NO se despliegan acá (esta acción solo publica Hosting):
-#   se despliegan con `npm run deploy:reglas` (ver README).
-
+# SECRETO NECESARIO: FIREBASE_SERVICE_ACCOUNT = clave JSON de la cuenta de servicio `github-deploy`
+# (roles: Firebase Hosting Admin, Firebase Rules Admin, Cloud Datastore Index Admin y Service Usage Consumer).
+# Variable opcional: FIREBASE_PROJECT_ID (si no está, se usa licity-mdp).
 on:
   push:
-    branches: [main]
+    branches: [prod, qa]
+
+concurrency:
+  group: desplegar-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
-  checks: write
   contents: read
-  pull-requests: write
 
 jobs:
+  calidad:
+    uses: ./.github/workflows/ci.yml
+
   desplegar:
+    needs: calidad
     runs-on: ubuntu-latest
+    env:
+      PROYECTO: ${{ vars.FIREBASE_PROJECT_ID || 'licity-mdp' }}
+      SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
     steps:
+      - name: Falta el secreto FIREBASE_SERVICE_ACCOUNT
+        if: env.SA == ''
+        run: echo "::warning::No hay secreto FIREBASE_SERVICE_ACCOUNT: no se publicó nada. Ver docs/INSTRUCTIVO-SETUP.md (sección Despliegue)."
       - uses: actions/checkout@v4
+        if: env.SA != ''
       - uses: actions/setup-node@v4
+        if: env.SA != ''
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run lint
+        if: env.SA != ''
       - run: npm run build # lee la config pública de .env.production
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          channelId: live
-          projectId: ${{ vars.FIREBASE_PROJECT_ID || 'licity-mdp' }}
+        if: env.SA != ''
+      - name: Credenciales (la clave vive solo en el runner)
+        if: env.SA != ''
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+      - name: Publicar en producción
+        if: env.SA != '' && github.ref == 'refs/heads/prod'
+        run: npx --yes firebase-tools@latest deploy --only hosting,firestore:rules,firestore:indexes --project "$PROYECTO" --non-interactive
+      - name: Publicar vista previa (qa)
+        if: env.SA != '' && github.ref == 'refs/heads/qa'
+        run: npx --yes firebase-tools@latest hosting:channel:deploy qa --expires 30d --project "$PROYECTO" --non-interactive
+      - name: Borrar credenciales
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"
