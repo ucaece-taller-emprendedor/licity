@@ -258,6 +258,8 @@ describe('ofertas', () => {
     const b = writeBatch(db)
     b.set(doc(db, 'ofertas/o-pub_con1'), oferta('o-pub', 'con1'))
     b.update(doc(db, 'obras/o-pub'), { estado: 'RECIBIENDO_OFERTAS' })
+    // El aviso a la PyME viaja en el mismo batch (la oferta todavía no existe antes del commit).
+    b.set(doc(collection(db, 'notificaciones')), { usuarioId: 'pyme1', titulo: 'Recibiste una oferta', cuerpo: null, href: '/app/pyme/obras/o-pub', obraId: 'o-pub', leida: false, creadaEn: ahora() })
     await assertSucceeds(b.commit())
   })
   it('ofertar a una obra PUBLICADA sin pasarla a RECIBIENDO_OFERTAS es rechazado', async () => {

@@ -22,6 +22,6 @@ void setPersistence(auth, browserLocalPersistence)
 export const usandoEmuladores = env.VITE_USE_EMULATORS === 'true'
 
 if (usandoEmuladores) {
-  connectAuthEmulator(auth, 'http://127.0.0.1:9399', { disableWarnings: true })
-  connectFirestoreEmulator(db, '127.0.0.1', 8381)
+  connectAuthEmulator(auth, 'http://127.0.0.1:9421', { disableWarnings: true })
+  connectFirestoreEmulator(db, '127.0.0.1', 8421)
 }
