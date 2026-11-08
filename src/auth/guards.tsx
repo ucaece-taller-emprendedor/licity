@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { Cargando } from '@/components/ui'
 import { panelDe, type Rol } from '@/config/app'
+import { EstadoVerificacion } from '@/components/EstadoVerificacion'
 import { useAuth } from './useAuth'
 
 /** Exige sesión iniciada. Si falta el perfil (login con Google nuevo) lleva a completarlo. */
@@ -33,4 +34,12 @@ export function RequireAdmin({ children }: { children?: ReactNode }) {
   if (cargando) return <Cargando />
   if (!usuario || !esAdmin) return <Navigate to="/admin/login" replace />
   return children ?? <Outlet />
+}
+
+/** Para las pantallas de contratista que requieren estar verificado: si no, explica el estado de la verificación. */
+export function RequireVerificado({ children }: { children?: ReactNode }) {
+  const { perfil, cargando } = useAuth()
+  if (cargando || !perfil) return <Cargando />
+  if (perfil.verificacion === 'APROBADO') return children ?? <Outlet />
+  return <EstadoVerificacion />
 }

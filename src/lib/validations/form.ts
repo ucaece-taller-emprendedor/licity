@@ -28,6 +28,8 @@ export function mensajeDeError(e: unknown): string {
     'auth/popup-closed-by-user': 'Cerraste la ventana de Google antes de terminar.',
     'auth/popup-blocked': 'El navegador bloqueó la ventana de Google. Permitila e intentá de nuevo.',
     'auth/network-request-failed': 'No hay conexión. Revisá tu internet.',
+    'auth/invalid-email': 'El email no es válido.',
+    'auth/user-disabled': 'Esta cuenta está deshabilitada. Escribinos si creés que es un error.',
     'permission-denied': 'No tenés permiso para hacer eso.',
   }
   return mapa[code] ?? 'Ocurrió un error inesperado. Probá de nuevo.'

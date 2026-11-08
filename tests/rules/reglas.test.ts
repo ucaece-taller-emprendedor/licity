@@ -1,5 +1,5 @@
 import { assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
-import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch, type Firestore } from 'firebase/firestore'
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore'
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest'
 import { crearEntorno } from './ayuda'
 
@@ -72,6 +72,7 @@ beforeEach(async () => {
 const como = (uid: string, email = `${uid}@test.com`, claims: Record<string, unknown> = {}) => env.authenticatedContext(uid, { email, ...claims }).firestore()
 const anonimo = () => env.unauthenticatedContext().firestore()
 const admin = () => como('admin1', 'admin@test.com', { admin: true })
+type Db = ReturnType<typeof como>
 const ahora = serverTimestamp
 
 // Documentos de alta válidos
@@ -79,7 +80,7 @@ const altaUsuario = (rol: 'pyme' | 'contratista', email: string) =>
   rol === 'pyme'
     ? { email, displayName: 'Nueva Persona', role: 'pyme', status: 'activo', isDemo: false, createdAt: ahora() }
     : { email, displayName: 'Nueva Persona', role: 'contratista', status: 'activo', verificacion: 'PENDIENTE', isDemo: false, createdAt: ahora() }
-async function registrar(db: Firestore, uid: string, rol: 'pyme' | 'contratista', usuarioExtra: Record<string, unknown> = {}, perfilExtra: Record<string, unknown> = {}) {
+async function registrar(db: Db, uid: string, rol: 'pyme' | 'contratista', usuarioExtra: Record<string, unknown> = {}, perfilExtra: Record<string, unknown> = {}) {
   const b = writeBatch(db)
   b.set(doc(db, `users/${uid}`), { ...altaUsuario(rol, `${uid}@test.com`), ...usuarioExtra })
   b.set(doc(db, `perfiles/${uid}`), { ...(rol === 'pyme' ? perfilPyme('Mi Empresa') : perfilCon('Mi Empresa')), ...perfilExtra })
@@ -312,7 +313,7 @@ describe('ofertas', () => {
 })
 
 describe('transiciones de estado de la obra', () => {
-  const adjudicarBatch = (db: Firestore, ganador = 'con1', obraId = 'o-rec', otros: string[] = ['con2']) => {
+  const adjudicarBatch = (db: Db, ganador = 'con1', obraId = 'o-rec', otros: string[] = ['con2']) => {
     const b = writeBatch(db)
     b.update(doc(db, `obras/${obraId}`), {
       estado: 'ADJUDICADA', contratistaId: ganador, contratistaNombre: ganador === 'con1' ? 'Obras Uno SA' : 'Obras Dos SA',

@@ -8,10 +8,10 @@ import {
   updateProfile,
   type User,
 } from 'firebase/auth'
-import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
+import { doc, onSnapshot, serverTimestamp, writeBatch } from 'firebase/firestore'
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { ROLES_REGISTRABLES, type RolRegistrable } from '@/config/app'
 import { auth, db } from '@/lib/firebase'
+import type { DatosCompletar, DatosRegistro } from '@/lib/validations/auth'
 import type { Perfil } from './tipos'
 
 export type AuthValor = {
@@ -20,28 +20,36 @@ export type AuthValor = {
   esAdmin: boolean
   /** true mientras se resuelve la sesión o se está registrando. */
   cargando: boolean
-  registrar: (d: { nombre: string; email: string; clave: string; rol: RolRegistrable }) => Promise<void>
+  registrar: (d: DatosRegistro) => Promise<void>
   ingresar: (email: string, clave: string) => Promise<void>
-  ingresarConGoogle: (rolSiEsNuevo?: RolRegistrable) => Promise<void>
-  /** Crea el documento de perfil de quien ingresó con Google sin haberlo creado. */
-  completarPerfil: (d: { nombre: string; rol: RolRegistrable }) => Promise<void>
+  /** Ingresa con Google. Si la cuenta no existe en Licity, el guard lleva a /app/completar-perfil. */
+  ingresarConGoogle: () => Promise<void>
+  /** Crea la cuenta y el perfil de quien ingresó con Google sin haberlos creado. */
+  completarPerfil: (d: DatosCompletar) => Promise<void>
   salir: () => Promise<void>
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthValor | null>(null)
 
-/** Crea users/{uid}. Las reglas solo permiten roles registrables y el estado que corresponde. */
-async function crearPerfil(u: User, nombre: string, rol: RolRegistrable) {
-  const cfg = ROLES_REGISTRABLES.find(r => r.rol === rol)
-  await setDoc(doc(db, 'users', u.uid), {
-    email: u.email ?? '',
-    displayName: nombre,
-    role: rol,
-    status: cfg?.requiereAprobacion ? 'pendiente' : 'activo',
-    isDemo: false,
-    createdAt: serverTimestamp(),
-  })
+/**
+ * Crea users/{uid} y perfiles/{uid} en un solo batch (las reglas exigen las dos juntas).
+ * El contratista nace con verificación PENDIENTE; la PyME, activa. Nadie puede crearse admin ni aprobado.
+ */
+async function crearCuenta(u: User, d: DatosRegistro | DatosCompletar) {
+  const lote = writeBatch(db)
+  const base = { email: u.email ?? '', displayName: d.nombre, role: d.rol, status: 'activo', isDemo: false, createdAt: serverTimestamp() }
+  if (d.rol === 'pyme') {
+    lote.set(doc(db, 'users', u.uid), base)
+    lote.set(doc(db, 'perfiles', u.uid), { nombreEmpresa: d.nombreEmpresa, cuit: d.cuit, ciudad: d.ciudad, telefono: d.telefono })
+  } else {
+    lote.set(doc(db, 'users', u.uid), { ...base, verificacion: 'PENDIENTE' })
+    lote.set(doc(db, 'perfiles', u.uid), {
+      nombreEmpresa: d.nombreEmpresa, cuit: d.cuit, especialidad: d.especialidad, ciudad: d.ciudad,
+      zona: d.zona, descripcion: d.descripcion, telefono: d.telefono, anios: d.anios,
+    })
+  }
+  await lote.commit()
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -81,7 +89,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       doc(db, 'users', uid),
       snap => {
         const d = snap.data()
-        setPerfil(snap.exists() && d ? ({ uid, email: d.email, displayName: d.displayName, role: d.role, status: d.status, isDemo: d.isDemo === true } as Perfil) : null)
+        setPerfil(
+          snap.exists() && d
+            ? ({ uid, email: d.email, displayName: d.displayName, role: d.role, status: d.status, verificacion: d.verificacion ?? null, motivoRechazo: d.motivoRechazo ?? null, isDemo: d.isDemo === true } as Perfil)
+            : null,
+        )
         setPerfilListo(true)
       },
       () => {
@@ -106,24 +118,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       perfil,
       esAdmin,
       cargando: !authListo || ocupado > 0 || (usuario !== null && (!perfilListo || !claimsListo)),
-      registrar: ({ nombre, email, clave, rol }) =>
+      registrar: d =>
         conOcupado(async () => {
-          const cred = await createUserWithEmailAndPassword(auth, email, clave)
-          await updateProfile(cred.user, { displayName: nombre })
-          await crearPerfil(cred.user, nombre, rol)
+          const cred = await createUserWithEmailAndPassword(auth, d.email, d.clave)
+          await updateProfile(cred.user, { displayName: d.nombre })
+          await crearCuenta(cred.user, d)
         }),
       ingresar: (email, clave) => conOcupado(async () => void (await signInWithEmailAndPassword(auth, email, clave))),
-      ingresarConGoogle: rolSiEsNuevo =>
+      ingresarConGoogle: () =>
         conOcupado(async () => {
-          const cred = await signInWithPopup(auth, new GoogleAuthProvider())
-          const existe = (await getDoc(doc(db, 'users', cred.user.uid))).exists()
-          if (!existe && rolSiEsNuevo) await crearPerfil(cred.user, cred.user.displayName ?? 'Sin nombre', rolSiEsNuevo)
-          // Si no existe y no se eligió rol, el guard lleva a /app/completar-perfil.
+          await signInWithPopup(auth, new GoogleAuthProvider())
+          // Si la cuenta no existe en Licity, el guard lleva a /app/completar-perfil (tipo de usuario + datos).
         }),
-      completarPerfil: ({ nombre, rol }) =>
+      completarPerfil: d =>
         conOcupado(async () => {
           if (!auth.currentUser) throw new Error('Sin sesión')
-          await crearPerfil(auth.currentUser, nombre, rol)
+          await crearCuenta(auth.currentUser, d)
         }),
       salir: () => signOut(auth),
     }),

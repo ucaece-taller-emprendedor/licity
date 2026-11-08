@@ -75,9 +75,9 @@ export function Selector({ etiqueta, error, children, ...p }: CampoProps & Selec
   )
 }
 
-export function Etiqueta({ children, tono = 'neutro' }: { children: ReactNode; tono?: 'neutro' | 'ok' | 'aviso' | 'peligro' | 'demo' }) {
-  const c = { neutro: 'bg-borde text-texto', ok: 'bg-ok/15 text-ok', aviso: 'bg-acento/20 text-texto', peligro: 'bg-peligro/15 text-peligro', demo: 'bg-primario/15 text-primario' }[tono]
-  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${c}`}>{children}</span>
+export function Etiqueta({ children, tono = 'neutro' }: { children: ReactNode; tono?: 'neutro' | 'info' | 'ok' | 'aviso' | 'peligro' | 'demo' }) {
+  const c = { neutro: 'bg-borde text-suave', info: 'bg-[#e4eef5] text-[#1f4a63]', ok: 'bg-[#dcebd3] text-[#27501a]', aviso: 'bg-acento/30 text-texto', peligro: 'bg-[#f6d6cf] text-[#7a1f10]', demo: 'bg-primario/15 text-primario' }[tono]
+  return <span className={`inline-flex items-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold ${c}`}>{children}</span>
 }
 
 export function EstadoVacio({ children }: { children: ReactNode }) {

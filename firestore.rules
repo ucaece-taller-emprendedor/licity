@@ -425,9 +425,9 @@ service cloud.firestore {
     // sean parte de la misma obra (o que avise el admin), para que no se pueda mandar spam a cualquiera.
     function sonPartesDeLaObra(obraId, emisor, receptor) {
       return (obra(obraId).clienteId == emisor
-              && (obra(obraId).contratistaId == receptor || exists(rutaOferta(idOferta(obraId, receptor)))))
+              && (obra(obraId).contratistaId == receptor || existsAfter(rutaOferta(idOferta(obraId, receptor)))))
           || (obra(obraId).clienteId == receptor
-              && (obra(obraId).contratistaId == emisor || exists(rutaOferta(idOferta(obraId, emisor)))));
+              && (obra(obraId).contratistaId == emisor || existsAfter(rutaOferta(idOferta(obraId, emisor)))));
     }
     match /notificaciones/{id} {
       allow read: if isOwner(resource.data.usuarioId);
