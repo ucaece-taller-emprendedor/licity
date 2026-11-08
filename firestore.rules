@@ -111,9 +111,11 @@ service cloud.firestore {
             && (!cambios().hasAny(['motivoRechazo']) || cambios().hasAny(['verificacion'])));
 
       // Dar y quitar el rol de admin: solo un admin, solo sobre OTRA persona, y solo cambia `role`.
+      // Los superadmins (campo `superadmin: true`, solo se escribe con el Admin SDK) quedan protegidos.
       // Se puede promover a alguien con la cuenta activa; al quitar el rol vuelve a ser 'pyme'.
       allow update: if isAdmin()
         && uid != request.auth.uid
+        && resource.data.get('superadmin', false) != true // superadmins de la cátedra: nadie les quita el rol
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
         && ((request.resource.data.role == 'admin' && resource.data.role != 'admin' && resource.data.status == 'activo')
          || (resource.data.role == 'admin' && request.resource.data.role == 'pyme'));

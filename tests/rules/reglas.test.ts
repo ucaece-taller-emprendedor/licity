@@ -582,3 +582,14 @@ describe('administradores dados desde la app (role "admin" en el perfil)', () =>
     await assertFails(getDocs(collection(como('adm3'), 'users')))
   })
 })
+
+describe('superadmins protegidos (cátedra)', () => {
+  it('a un superadmin nadie le puede quitar el rol, ni siquiera otro admin', async () => {
+    await env.withSecurityRulesDisabled(async ctx => setDoc(doc(ctx.firestore(), 'users/sup1'), { email: 'sup1@test.com', displayName: 'Superadmin', role: 'admin', status: 'activo', superadmin: true, isDemo: false, createdAt: new Date() }))
+    await env.withSecurityRulesDisabled(async ctx => setDoc(doc(ctx.firestore(), 'users/adm9'), { email: 'adm9@test.com', displayName: 'Admin Común', role: 'admin', status: 'activo', isDemo: false, createdAt: new Date() }))
+    await assertFails(updateDoc(doc(como('adm9'), 'users/sup1'), { role: 'pyme' }))
+    await assertFails(updateDoc(doc(admin(), 'users/sup1'), { role: 'pyme' }))
+    await assertFails(updateDoc(doc(como('adm9'), 'users/sup1'), { superadmin: false }))
+    await assertSucceeds(updateDoc(doc(admin(), 'users/adm9'), { role: 'pyme' }))
+  })
+})

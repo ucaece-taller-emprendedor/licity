@@ -7,7 +7,7 @@ import { useColeccion } from '@/hooks/useColeccion'
 import { db } from '@/lib/firebase'
 import { mensajeDeError } from '@/lib/validations/form'
 
-type UsuarioFila = { email: string; displayName: string; role: Rol; status: string; isDemo?: boolean }
+type UsuarioFila = { email: string; displayName: string; role: Rol; status: string; isDemo?: boolean; superadmin?: boolean }
 
 /** Tipo al que vuelve alguien cuando se le quita el rol admin: el primero que no necesita aprobación. */
 const ROL_BASE = (ROLES_REGISTRABLES.find(r => !(r as { requiereAprobacion?: boolean }).requiereAprobacion) ?? ROLES_REGISTRABLES[0])?.rol
@@ -58,10 +58,10 @@ export default function Administradores() {
                 return (
                   <tr key={u.id} className="border-b border-borde last:border-0" data-testid={`admin-fila-${u.email}`}>
                     <td className="p-3"><p className="font-medium">{u.displayName} {u.isDemo && <Etiqueta tono="demo">DEMO</Etiqueta>}</p><p className="text-xs text-suave">{u.email}</p></td>
-                    <td className="p-3">{u.role === 'admin' ? <Etiqueta tono="ok">{ETIQUETA_ROL.admin}</Etiqueta> : <Etiqueta>{ETIQUETA_ROL[u.role] ?? u.role}</Etiqueta>}</td>
+                    <td className="p-3">{u.role === 'admin' ? <Etiqueta tono="ok">{u.superadmin ? 'Superadmin' : ETIQUETA_ROL.admin}</Etiqueta> : <Etiqueta>{ETIQUETA_ROL[u.role] ?? u.role}</Etiqueta>}</td>
                     <td className="p-3 text-right">
                       {u.role === 'admin' ? (
-                        esYo ? <span className="text-xs text-suave">Sos vos</span> : (
+                        u.superadmin ? <span className="text-xs text-suave">Superadmin protegido</span> : esYo ? <span className="text-xs text-suave">Sos vos</span> : (
                           <Boton variante="borde" disabled={ocupado === u.id || !ROL_BASE} onClick={() => ROL_BASE && void cambiar(u.id, ROL_BASE)}>Quitar admin</Boton>
                         )
                       ) : u.status === 'activo' ? (
