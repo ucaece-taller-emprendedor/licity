@@ -8,7 +8,6 @@ Documento para quedarse con el proyecto y manejarlo solos. Todo es **gratuito y 
 | Código | GitHub: `ucaece-taller-emprendedor/licity` (ramas `prod`, `qa`) | equipo (rol Admin del repo) |
 | Sitio web | Firebase Hosting: https://licity-mdp.web.app | dueños del proyecto Firebase |
 | Base de datos y usuarios | Firebase `licity-mdp` (Firestore + Authentication) | dueños del proyecto Firebase |
-| Estadísticas | Google Analytics 4 (propiedad del proyecto) | quien tenga acceso a la propiedad |
 | Despliegue automático | GitHub Actions (`.github/workflows`) | se activa solo al mergear a `prod` / `qa` |
 
 ## 2. Primeros pasos del equipo
@@ -31,29 +30,21 @@ Usuarios demo (solo en local), contraseña `Demo-Clave-2026`: ver el `README.md`
 - Push/merge a **`qa`** → vista previa en un canal de Hosting (30 días).
 - Requiere el secreto de GitHub `FIREBASE_SERVICE_ACCOUNT` (ya cargado por la cátedra). Si hay que regenerarlo: Consola de Google Cloud → IAM → Cuentas de servicio → `github-deploy` → Claves → nueva clave JSON → pegarla como secreto del repo (Settings → Secrets and variables → Actions) y **borrar el archivo descargado**.
 
-## 5. Estadísticas (Google Analytics)
-El sitio ya trae el código de **Google Analytics 4** (gratis); solo falta conectarlo **una vez**:
-1. Entrar a https://analytics.google.com con la cuenta de Google del equipo → *Administrar* → *Crear* → *Propiedad* (nombre: Licity, zona horaria Argentina) → *Flujo de datos* → *Web* → URL @U@.
-2. Copiar el **ID de medición** (empieza con `G-`).
-3. Pegarlo en `.env.production` como `VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX` y publicar el cambio (rama `qa` → `prod`).
-4. Ver las visitas en *Informes → Participación → Páginas y pantallas*: `/` es la landing, `/app` la aplicación y `/admin` la administración. En el panel de admin, la sección **Estadísticas** explica lo mismo y enlaza a Google Analytics. Para sumar a más gente: *Administrar → Administración de acceso a la propiedad*.
-Si no hay ID, el sitio simplemente no envía datos.
-
-## 6. Mails a usuarios
+## 5. Mails a usuarios
 Hoy el sistema envía por Firebase los mails de **recuperar contraseña**, con el nombre y los textos de Licity. Mails de bienvenida o notificaciones por evento requieren un servicio externo (p. ej. Resend, plan gratis) o Cloud Functions (plan Blaze, con tarjeta); no están activados para mantener el costo en cero.
 
-## 7. Contraseñas y claves: reglas
+## 6. Contraseñas y claves: reglas
 - Las cuentas de admin entregadas tienen contraseña inicial: **cambiarla en el primer ingreso**.
 - Nunca guardar claves en el repositorio. La clave JSON de la cuenta de servicio solo vive como secreto de GitHub.
 - Si alguien deja el equipo: quitarlo de Usuarios y permisos de Firebase, del repo y de `/admin/administradores`.
 
-## 8. Qué NO hacer
+## 7. Qué NO hacer
 No activar el plan Blaze ni cargar tarjetas. No borrar el proyecto Firebase ni el repo. No editar reglas de Firestore sin tests.
 
-## 9. Límites del plan gratuito
+## 8. Límites del plan gratuito
 Firestore 1 GiB y 50.000 lecturas / 20.000 escrituras por día; Hosting 10 GB y ~360 MB/día; Auth ~3.000 usuarios activos/día. Si se superan, el servicio se corta hasta el día siguiente (no se cobra).
 
-## 10. Llevarte el proyecto a tu cuenta
+## 9. Llevarte el proyecto a tu cuenta
 1. GitHub: Settings → General → Danger Zone → *Transfer ownership*.
 2. Firebase: agregar tu mail como Propietario; cuando confirmes que ves todo, la cátedra se retira.
 3. Reconfigurar el secreto `FIREBASE_SERVICE_ACCOUNT` desde tu cuenta si querés.

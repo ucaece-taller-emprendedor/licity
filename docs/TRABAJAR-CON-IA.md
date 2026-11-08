@@ -28,6 +28,3 @@ No necesitás saber programar. Tu rol es **decidir qué querés**; la IA program
 1. La persona se **registra** en la app (`/app/registro`).
 2. Un admin entra a `/admin/administradores`, la busca y toca **Hacer admin**.
 3. La persona cierra sesión y entra por `/admin/login`.
-
-## Estadísticas
-Panel de Google Analytics del sitio (landing y app): ver `docs/INSTRUCTIVO-SETUP.md` → "Estadísticas".
