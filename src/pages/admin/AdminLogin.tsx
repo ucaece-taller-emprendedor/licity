@@ -2,6 +2,7 @@ import { signOut } from 'firebase/auth'
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 import { useAuth } from '@/auth/useAuth'
+import { RecuperarClave } from '@/components/RecuperarClave'
 import { Marca } from '@/components/Marca'
 import { Alerta, Boton, Campo, Cargando, Tarjeta } from '@/components/ui'
 import { auth } from '@/lib/firebase'
@@ -53,6 +54,7 @@ export default function AdminLogin() {
           {error && <Alerta>{error}</Alerta>}
           <Boton type="submit" className="w-full" disabled={enviando}>{enviando ? 'Ingresando…' : 'Ingresar'}</Boton>
         </form>
+        <RecuperarClave />
       </Tarjeta>
     </div>
   )

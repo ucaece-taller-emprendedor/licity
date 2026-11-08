@@ -157,3 +157,26 @@ test('los pagos se rotulan como registro de prueba', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Pago final' })).toBeVisible()
   await expect(page.getByText('Registro de prueba').first()).toBeVisible()
 })
+
+test('olvidé mi contraseña: login de admin y de usuarios piden el mail y confirman el envío', async ({ page }) => {
+  for (const ruta of ['/admin/login']) {
+    await page.goto(ruta)
+    await page.getByRole('button', { name: 'Olvidé mi contraseña' }).click()
+    await page.getByLabel('Email de tu cuenta').fill('no-es-un-email')
+    await page.getByRole('button', { name: 'Enviarme el enlace' }).click()
+    await expect(page.getByText('Ingresá un email válido.')).toBeVisible()
+    await page.getByLabel('Email de tu cuenta').fill('alguien@ejemplo.test')
+    await page.getByRole('button', { name: 'Enviarme el enlace' }).click()
+    await expect(page.getByText('te enviamos el enlace')).toBeVisible()
+  }
+})
+
+test('el admin ve "Cambiar mi contraseña" en su panel', async ({ page }) => {
+  await page.goto('/admin/login')
+  await page.getByLabel('Email', { exact: true }).fill('admin.demo@licity.test')
+  await page.getByLabel('Contraseña').fill('Demo-Clave-2026')
+  await page.getByRole('button', { name: 'Ingresar', exact: true }).click()
+  await expect(page).toHaveURL(/\/admin$/)
+  await page.getByRole('button', { name: 'Cambiar mi contraseña' }).click()
+  await expect(page.getByText('Te enviamos un mail con el enlace.')).toBeVisible()
+})
