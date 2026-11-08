@@ -53,7 +53,7 @@ jobs:
         run: npx --yes firebase-tools@latest deploy --only hosting,firestore:rules,firestore:indexes --project "$PROYECTO" --non-interactive
       - name: Publicar vista previa (qa)
         if: env.SA != '' && github.ref == 'refs/heads/qa'
-        run: npx --yes firebase-tools@latest hosting:channel:deploy qa --expires 30d --project "$PROYECTO" --non-interactive
+        run: npx --yes firebase-tools@latest hosting:channel:deploy qa --only licity-ucaecemdp --expires 30d --project "$PROYECTO" --non-interactive
       - name: Borrar credenciales
         if: always()
         run: rm -f "$RUNNER_TEMP/sa.json"

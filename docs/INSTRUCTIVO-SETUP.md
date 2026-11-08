@@ -6,14 +6,14 @@ Documento para quedarse con el proyecto y manejarlo solos. Todo es **gratuito y 
 | Pieza | Dónde | Quién la administra |
 |---|---|---|
 | Código | GitHub: `ucaece-taller-emprendedor/licity` (ramas `prod`, `qa`) | equipo (rol Admin del repo) |
-| Sitio web | Firebase Hosting: https://licity-mdp.web.app | dueños del proyecto Firebase |
+| Sitio web | Firebase Hosting: https://licity-ucaecemdp.web.app | dueños del proyecto Firebase |
 | Base de datos y usuarios | Firebase `licity-mdp` (Firestore + Authentication) | dueños del proyecto Firebase |
 | Despliegue automático | GitHub Actions (`.github/workflows`) | se activa solo al mergear a `prod` / `qa` |
 
 ## 2. Primeros pasos del equipo
 1. **Aceptar la invitación** al repositorio de GitHub (llega por mail).
 2. **Pedir/aceptar el rol Propietario** en el proyecto Firebase (Consola de Firebase → ⚙ Configuración del proyecto → Usuarios y permisos): se necesita el mail de Google de cada responsable.
-3. Entrar a https://licity-mdp.web.app/admin/login con la cuenta de admin que se les entregó por separado, y **cambiar la contraseña** (botón "Cambiar mi contraseña").
+3. Entrar a https://licity-ucaecemdp.web.app/admin/login con la cuenta de admin que se les entregó por separado, y **cambiar la contraseña** (botón "Cambiar mi contraseña").
 4. Sumar a otras personas como admin: ver `docs/TRABAJAR-CON-IA.md` → "Dar acceso de admin".
 
 ## 3. Trabajar en local (opcional, lo puede hacer la IA)

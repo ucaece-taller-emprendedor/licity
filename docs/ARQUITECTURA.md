@@ -39,7 +39,7 @@ Colecciones: users, perfiles, obras, novedades, ofertas, pagos, notificaciones. 
 ## Entornos y ramas
 | Rama | Qué es | Qué pasa al hacer push/merge |
 |---|---|---|
-| `prod` | lo que ve el público | se publica en https://licity-mdp.web.app (Hosting + reglas) |
+| `prod` | lo que ve el público | se publica en https://licity-ucaecemdp.web.app (Hosting + reglas) |
 | `qa` | integración y revisión | se publica una **vista previa** (canal `qa`, URL en el log del workflow) |
 | `feature/*` | trabajo de cada cambio | corre CI en el PR |
 

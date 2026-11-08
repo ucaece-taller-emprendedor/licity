@@ -2,7 +2,7 @@
 
 Este repositorio es **Licity**: licitaciones de obra entre PyMEs y contratistas. Lo hicieron estudiantes del Taller Emprendedor (UCAECE Mar del Plata). **Las personas dueñas del proyecto no son técnicas**: la IA hace el trabajo de programación y tiene que explicarles todo en lenguaje simple, en español rioplatense, sin jerga (si hay que usar un término técnico, explicarlo en una línea).
 
-Sitio en producción: https://licity-mdp.web.app · Proyecto Firebase: `licity-mdp` · Plan **Spark** (gratis, sin tarjeta).
+Sitio en producción: https://licity-ucaecemdp.web.app · Proyecto Firebase: `licity-mdp` · Plan **Spark** (gratis, sin tarjeta).
 
 ## Reglas de oro (no negociables)
 1. **Nunca** subir secretos, claves JSON, contraseñas ni tokens al repositorio ni pegarlos en chats o issues. La config web de Firebase (`.env.production`) es pública; todo lo demás no.
@@ -37,7 +37,7 @@ Sitio en producción: https://licity-mdp.web.app · Proyecto Firebase: `licity-m
 4. **Implementar** siguiendo las convenciones de abajo; reglas + tests si hay datos o permisos nuevos.
 5. **Verificar** con `npm run lint && npm run build && npm test`. Si algo falla, arreglar la causa.
 6. **PR hacia `qa`** con: qué cambió, por qué, cómo probarlo y capturas si hay pantallas. Explicarle a la persona qué ver en la vista previa.
-7. **Pasar a producción** solo cuando la persona confirme: PR `qa` → `prod`. Después del deploy, comprobar el sitio en https://licity-mdp.web.app.
+7. **Pasar a producción** solo cuando la persona confirme: PR `qa` → `prod`. Después del deploy, comprobar el sitio en https://licity-ucaecemdp.web.app.
 
 ## Convenciones
 - Textos en **español rioplatense** (vos, "Ingresá", "Registrate"). Mensajes de error claros y sin tecnicismos.

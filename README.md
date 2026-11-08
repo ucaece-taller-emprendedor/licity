@@ -2,7 +2,7 @@
 
 Marketplace B2B de licitación de obras: la **PyME** publica su obra, **contratistas verificados** ofertan, la PyME compara y adjudica, sigue el avance y confirma la finalización. Los pagos son **simulados** (registro de prueba, comisión de referencia 1,5 %). Proyecto del Taller Emprendedor (UCAECE Mar del Plata), llevado a la plantilla común **gratis y sin tarjeta**: Vite + React + TypeScript + Tailwind + Firebase (Auth, Firestore con reglas de seguridad, Hosting) en plan **Spark**, sin Cloud Functions ni Storage.
 
-- Sitio publicado (cuando se despliegue): https://licity-mdp.web.app · Proyecto Firebase: `licity-mdp`
+- Sitio publicado (cuando se despliegue): https://licity-ucaecemdp.web.app · Proyecto Firebase: `licity-mdp`
 
 > **Trabajar con una IA / traspaso:** [`CLAUDE.md`](CLAUDE.md) · [`docs/TRABAJAR-CON-IA.md`](docs/TRABAJAR-CON-IA.md) · [`docs/INSTRUCTIVO-SETUP.md`](docs/INSTRUCTIVO-SETUP.md) · [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)
 
@@ -95,7 +95,7 @@ Para que el workflow funcione el responsable del proyecto configura **una sola v
 
 ## Cómo desplegar (lo hace el responsable del proyecto)
 
-1. El proyecto **`licity-mdp`** ya está creado (plan Spark, Auth con Email/contraseña y Google, Firestore `(default)` en `nam5` en modo producción y Hosting en https://licity-mdp.web.app). La config web ya está en `.env.production`. **No activar Blaze.**
+1. El proyecto **`licity-mdp`** ya está creado (plan Spark, Auth con Email/contraseña y Google, Firestore `(default)` en `nam5` en modo producción y Hosting en https://licity-ucaecemdp.web.app). La config web ya está en `.env.production`. **No activar Blaze.**
 2. El id del proyecto ya está en `.firebaserc` (`licity-mdp`).
 3. Subir las reglas: `npx firebase deploy --only firestore:rules,firestore:indexes` (o `npm run deploy:reglas`).
 4. Conectar GitHub ↔ Hosting **una sola vez**: `npx firebase init hosting:github` (crea la cuenta de servicio y carga el secreto `FIREBASE_SERVICE_ACCOUNT_...` en GitHub; **no se crea ni se sube a mano**). Ajustar el nombre del secreto en `.github/workflows/deploy.yml` si hace falta.
