@@ -1,11 +1,12 @@
 import { signOut } from 'firebase/auth'
+import { doc, getDoc } from 'firebase/firestore'
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 import { useAuth } from '@/auth/useAuth'
 import { RecuperarClave } from '@/components/RecuperarClave'
 import { Marca } from '@/components/Marca'
 import { Alerta, Boton, Campo, Cargando, Tarjeta } from '@/components/ui'
-import { auth } from '@/lib/firebase'
+import { auth, db } from '@/lib/firebase'
 import { loginSchema } from '@/lib/validations/auth'
 import { mensajeDeError, validarFormulario, type Errores } from '@/lib/validations/form'
 
@@ -30,7 +31,13 @@ export default function AdminLogin() {
     try {
       await ingresar(r.datos.email, r.datos.clave)
       const token = await auth.currentUser?.getIdTokenResult(true)
-      if (token?.claims.admin !== true) {
+      let permitido = token?.claims.admin === true
+      if (!permitido && auth.currentUser) {
+        // Admin dado desde el panel: figura con role 'admin' en su perfil.
+        const perfilDoc = (await getDoc(doc(db, 'users', auth.currentUser.uid))).data()
+        permitido = perfilDoc?.role === 'admin' && perfilDoc.status === 'activo'
+      }
+      if (!permitido) {
         await signOut(auth)
         setError('Esta cuenta no tiene permisos de administrador.')
         return

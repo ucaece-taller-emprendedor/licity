@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router'
 import { RequireAdmin, RequireAuth, RequireRole, RequireVerificado } from '@/auth/guards'
 import { AdminLayout, PanelLayout, SitioLayout } from '@/components/layouts'
+import Administradores from '@/pages/admin/Administradores'
 import AdminLogin from '@/pages/admin/AdminLogin'
 import { AdminInicio, AdminObras, AdminPagos, AdminUsuarios, AdminVerificaciones } from '@/pages/admin/AdminPaginas'
 import { AppInicio, CompletarPerfil, Ingresar, Recuperar, Registro, RegistroPorTipo, Suspendido } from '@/pages/app/Acceso'
@@ -89,7 +90,7 @@ export const router = createBrowserRouter([
         <AdminLayout
           navegacion={[
             { to: '/admin', etiqueta: 'Inicio', fin: true },
-            { to: '/admin/usuarios', etiqueta: 'Usuarios' },
+            { to: '/admin/usuarios', etiqueta: 'Usuarios' }, { to: '/admin/administradores', etiqueta: 'Administradores' },
             { to: '/admin/verificaciones', etiqueta: 'Verificaciones' },
             { to: '/admin/obras', etiqueta: 'Obras' },
             { to: '/admin/pagos', etiqueta: 'Pagos' },
@@ -100,6 +101,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <AdminInicio /> },
       { path: 'usuarios', element: <AdminUsuarios /> },
+      { path: 'administradores', element: <Administradores /> },
       { path: 'verificaciones', element: <AdminVerificaciones /> },
       { path: 'obras', element: <AdminObras /> },
       { path: 'pagos', element: <AdminPagos /> },

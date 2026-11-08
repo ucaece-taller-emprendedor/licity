@@ -116,7 +116,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       usuario,
       perfil,
-      esAdmin,
+      // Admin por claim (cátedra) o por rol en su perfil (lo da otro admin desde /admin/administradores).
+      esAdmin: esAdmin || (perfil?.role === 'admin' && perfil.status === 'activo'),
       cargando: !authListo || ocupado > 0 || (usuario !== null && (!perfilListo || !claimsListo)),
       registrar: d =>
         conOcupado(async () => {

@@ -31,8 +31,11 @@ service cloud.firestore {
 
     // ── Helpers generales ──────────────────────────────────────────────────
     function signedIn() { return request.auth != null; }
-    // El rol admin se da con un custom claim (scripts/admin-dar.ts). Un usuario no puede ponérselo.
-    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    // Admin = custom claim (scripts/admin-dar.ts, para los admins iniciales) o role 'admin' en users/{uid}. Un usuario no puede ponérselo.
+    function isAdmin() { return signedIn() && (request.auth.token.admin == true || isAdminDoc()); }
+    // Admin "de la app": un admin ya existente le dio role 'admin' en users/{uid} (pantalla Administradores).
+    // Solo un admin puede escribir ese rol (ver reglas de users): nadie se lo puede poner solo.
+    function isAdminDoc() { return exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'activo'; }
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
     function userDoc(uid) { return get(/databases/$(database)/documents/users/$(uid)).data; }
     function hasUserDoc(uid) { return exists(/databases/$(database)/documents/users/$(uid)); }
@@ -106,6 +109,14 @@ service cloud.firestore {
             && (request.resource.data.get('verificacion', null) != 'RECHAZADO' || str(request.resource.data.get('motivoRechazo', null), 5, 300))
             && (request.resource.data.get('verificacion', null) != 'APROBADO' || !('motivoRechazo' in request.resource.data))
             && (!cambios().hasAny(['motivoRechazo']) || cambios().hasAny(['verificacion'])));
+
+      // Dar y quitar el rol de admin: solo un admin, solo sobre OTRA persona, y solo cambia `role`.
+      // Se puede promover a alguien con la cuenta activa; al quitar el rol vuelve a ser 'pyme'.
+      allow update: if isAdmin()
+        && uid != request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+        && ((request.resource.data.role == 'admin' && resource.data.role != 'admin' && resource.data.status == 'activo')
+         || (resource.data.role == 'admin' && request.resource.data.role == 'pyme'));
 
       allow delete: if false;
     }

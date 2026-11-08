@@ -149,7 +149,6 @@ describe('users y registro', () => {
     await assertSucceeds(updateDoc(doc(db, 'users/conPend'), { verificacion: 'RECHAZADO', motivoRechazo: 'Falta la constancia de CUIT' }))
     await assertSucceeds(updateDoc(doc(db, 'users/conRech'), { verificacion: 'APROBADO', motivoRechazo: deleteField() }))
     await assertFails(updateDoc(doc(db, 'users/pyme1'), { verificacion: 'APROBADO' }))
-    await assertFails(updateDoc(doc(db, 'users/pyme1'), { role: 'admin' }))
     await assertFails(updateDoc(doc(db, 'users/adminDoc'), { status: 'suspendido' }))
     await assertFails(deleteDoc(doc(db, 'users/pyme1')))
   })
@@ -157,10 +156,6 @@ describe('users y registro', () => {
     await assertSucceeds(updateDoc(doc(admin(), 'users/pyme1'), { status: 'suspendido' }))
     await assertSucceeds(updateDoc(doc(admin(), 'users/pymeSusp'), { status: 'activo' }))
     await assertFails(updateDoc(doc(admin(), 'users/pyme1'), { status: 'borrado' }))
-  })
-  it('un usuario con role "admin" en su doc pero SIN claim no es admin', async () => {
-    await assertFails(getDocs(collection(como('adminDoc'), 'users')))
-    await assertFails(updateDoc(doc(como('adminDoc'), 'users/conPend'), { verificacion: 'APROBADO' }))
   })
 })
 
@@ -553,5 +548,37 @@ describe('todo lo demás está denegado', () => {
   it('colecciones no declaradas', async () => {
     await assertFails(setDoc(doc(como('pyme1'), 'otra/cosa'), { x: 1 }))
     await assertFails(getDoc(doc(admin(), 'otra/cosa')))
+  })
+})
+
+describe('administradores dados desde la app (role "admin" en el perfil)', () => {
+  const adminDoc = (uid: string, status = 'activo') =>
+    env.withSecurityRulesDisabled(async ctx => setDoc(doc(ctx.firestore(), `users/${uid}`), { email: `${uid}@test.com`, displayName: 'Admin De App', role: 'admin', status, isDemo: false, createdAt: new Date() }))
+
+  it('un admin (claim) promueve a un usuario activo y esa persona pasa a ser admin', async () => {
+    await assertFails(getDocs(collection(como('pyme1'), 'users')))
+    await assertSucceeds(updateDoc(doc(admin(), 'users/pyme1'), { role: 'admin' }))
+    await assertSucceeds(getDocs(collection(como('pyme1'), 'users')))
+  })
+  it('no se puede promover a alguien pendiente o suspendido, ni cambiar otros campos a la vez', async () => {
+    await assertFails(updateDoc(doc(admin(), 'users/pymeSusp'), { role: 'admin' }))
+    await assertFails(updateDoc(doc(admin(), 'users/pyme1'), { role: 'admin', displayName: 'Otro' }))
+  })
+  it('quien no es admin no puede promover a nadie, ni a sí mismo', async () => {
+    await assertFails(updateDoc(doc(como('pyme1'), 'users/pyme2'), { role: 'admin' }))
+    await assertFails(updateDoc(doc(como('pyme1'), 'users/pyme1'), { role: 'admin' }))
+  })
+  it('un admin de la app promueve y quita el rol a otros, pero no cambia el propio', async () => {
+    await adminDoc('adm1')
+    await adminDoc('adm2')
+    const db = como('adm1')
+    await assertSucceeds(updateDoc(doc(db, 'users/pyme1'), { role: 'admin' }))
+    await assertSucceeds(updateDoc(doc(db, 'users/adm2'), { role: 'pyme' }))
+    await assertFails(updateDoc(doc(db, 'users/adm1'), { role: 'pyme' }))
+    await assertFails(deleteDoc(doc(db, 'users/pyme1')))
+  })
+  it('un admin de la app suspendido pierde los poderes', async () => {
+    await adminDoc('adm3', 'suspendido')
+    await assertFails(getDocs(collection(como('adm3'), 'users')))
   })
 })
