@@ -8,5 +8,5 @@ export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   // Firebase pesa ~900 kB; es esperable en una SPA con Auth + Firestore.
   build: { chunkSizeWarningLimit: 1100 },
-  server: { port: 5180, strictPort: true },
+  server: { port: 5421, strictPort: true },
 })

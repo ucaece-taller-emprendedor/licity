@@ -3,10 +3,10 @@ import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
 
 /** Proyecto "demo-" de los emuladores: nunca toca producción. Cambiarlo junto con firebase.json/package.json. */
-export const PROYECTO_EMULADOR = 'demo-plantilla'
+export const PROYECTO_EMULADOR = 'demo-licity'
 
-export const HOST_AUTH_EMULADOR = '127.0.0.1:9399'
-export const HOST_FIRESTORE_EMULADOR = '127.0.0.1:8381'
+export const HOST_AUTH_EMULADOR = '127.0.0.1:9421'
+export const HOST_FIRESTORE_EMULADOR = '127.0.0.1:8421'
 
 /**
  * Inicia firebase-admin.

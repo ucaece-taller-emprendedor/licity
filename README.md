@@ -20,9 +20,9 @@ Necesitás [Node.js 20+](https://nodejs.org) y [Java 21+](https://adoptium.net) 
 
 ```bash
 npm install
-npm run emuladores        # terminal 1: emuladores de Auth y Firestore (UI en http://127.0.0.1:4390)
+npm run emuladores        # terminal 1: emuladores de Auth y Firestore (UI en http://127.0.0.1:4421)
 npm run seed              # terminal 2: carga los usuarios y datos DEMO
-npm run dev:emulador      # terminal 2: la app en http://localhost:5180
+npm run dev:emulador      # terminal 2: la app en http://localhost:5421
 ```
 
 Los emuladores empiezan vacíos cada vez que se reinician: volvé a correr `npm run seed`.

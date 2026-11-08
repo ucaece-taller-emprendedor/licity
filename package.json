@@ -1,9 +1,9 @@
 {
-  "name": "plantilla-startup",
+  "name": "licity",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Plantilla de app para las startups del Taller Emprendedor (Vite + React + Firebase).",
+  "description": "Licity: marketplace B2B de licitación de obras para PyMEs (Vite + React + Firebase).",
   "engines": {
     "node": ">=20"
   },
@@ -14,16 +14,18 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -b",
-    "emuladores": "firebase emulators:start --only auth,firestore --project demo-plantilla",
+    "emuladores": "firebase emulators:start --only auth,firestore --project demo-licity",
     "seed": "tsx scripts/seed.ts",
     "admin:dar": "tsx scripts/admin-dar.ts",
     "admin:dar:prod": "tsx scripts/admin-dar.ts --produccion",
-    "test:reglas": "firebase emulators:exec --only firestore --project demo-plantilla \"vitest run\"",
-    "test:e2e": "firebase emulators:exec --only auth,firestore --project demo-plantilla \"playwright test\"",
+    "test:reglas": "firebase emulators:exec --only firestore --project demo-licity \"vitest run\"",
+    "test:e2e": "firebase emulators:exec --only auth,firestore --project demo-licity \"playwright test\"",
     "test": "npm run test:reglas && npm run test:e2e",
     "deploy:reglas": "firebase deploy --only firestore:rules,firestore:indexes"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource/anton": "^5.3.0",
     "firebase": "^12.19.0",
     "lucide-react": "^1.70.0",
     "react": "^19.3.1",

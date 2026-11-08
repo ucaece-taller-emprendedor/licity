@@ -6,7 +6,7 @@ import { crearEntorno } from './ayuda'
 let env: RulesTestEnvironment
 
 beforeAll(async () => {
-  env = await crearEntorno('demo-plantilla-reglas')
+  env = await crearEntorno('demo-licity-reglas')
 })
 afterAll(async () => env.cleanup())
 beforeEach(async () => {

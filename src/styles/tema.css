@@ -1,15 +1,23 @@
-/* TEMA — cambiá estos valores para darle la identidad visual a cada startup. */
+/* TEMA Licity — terracota #ce4c32, mostaza #ecb533, crema #f5e9db / #fffaf5, marrón #2b1a14.
+   Los botones usan la terracota "fuerte" (#b83f27) para tener buen contraste con texto claro. */
 :root {
-  --tema-primario: #2563eb;
-  --tema-primario-texto: #ffffff;
-  --tema-acento: #f59e0b;
-  --tema-fondo: #f8fafc;
-  --tema-superficie: #ffffff;
-  --tema-texto: #0f172a;
-  --tema-texto-suave: #64748b;
-  --tema-borde: #e2e8f0;
-  --tema-peligro: #dc2626;
-  --tema-ok: #16a34a;
-  --tema-radio: 0.75rem;
-  --tema-fuente: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --tema-primario: #b83f27;
+  --tema-primario-texto: #fffaf5;
+  --tema-acento: #ecb533;
+  --tema-fondo: #f5e9db;
+  --tema-superficie: #fffaf5;
+  --tema-texto: #2b1a14;
+  --tema-texto-suave: #6b5148;
+  --tema-borde: #e3cfb8;
+  --tema-peligro: #a52a1a;
+  --tema-ok: #27501a;
+  --tema-radio: 1rem;
+  --tema-fuente: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --tema-fuente-titulos: 'Anton', 'Bebas Neue', Impact, sans-serif;
+  /* Marca */
+  --marca-terracota: #ce4c32;
+  --marca-mostaza: #ecb533;
+  --marca-crema: #f5e9db;
+  --marca-crema-claro: #fffaf5;
+  --marca-marron: #2b1a14;
 }

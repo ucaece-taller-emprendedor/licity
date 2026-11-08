@@ -15,8 +15,20 @@
   --color-ok: var(--tema-ok);
   --radius-tema: var(--tema-radio);
   --font-sans: var(--tema-fuente);
+  --font-titulos: var(--tema-fuente-titulos);
+  --color-terracota: var(--marca-terracota);
+  --color-mostaza: var(--marca-mostaza);
+  --color-crema: var(--marca-crema);
+  --color-crema-claro: var(--marca-crema-claro);
+  --color-marron: var(--marca-marron);
 }
 
 html { background: var(--tema-fondo); color: var(--tema-texto); }
 body { min-height: 100dvh; margin: 0; font-family: var(--tema-fuente); }
 :focus-visible { outline: 2px solid var(--tema-primario); outline-offset: 2px; }
+html { scroll-behavior: smooth; }
+body { -webkit-font-smoothing: antialiased; }
+/* Títulos con la tipografía de marca (Anton), como en la app original. */
+h1, h2, h3 { font-family: var(--tema-fuente-titulos); text-transform: uppercase; letter-spacing: 0.025em; font-weight: 400; line-height: 1.05; }
+.titulo-marca { font-family: var(--tema-fuente-titulos); text-transform: uppercase; letter-spacing: 0.025em; font-weight: 400; line-height: 1.05; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
