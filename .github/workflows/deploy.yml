@@ -30,7 +30,8 @@ jobs:
     steps:
       - name: Falta el secreto FIREBASE_SERVICE_ACCOUNT
         if: env.SA == ''
-        run: echo "::warning::No hay secreto FIREBASE_SERVICE_ACCOUNT: no se publicó nada. Ver docs/INSTRUCTIVO-SETUP.md (sección Despliegue)."
+        run: |
+          echo "::warning::Falta el secreto FIREBASE_SERVICE_ACCOUNT, no se publicó nada. Ver docs/INSTRUCTIVO-SETUP.md (sección Despliegue)."
       - uses: actions/checkout@v4
         if: env.SA != ''
       - uses: actions/setup-node@v4
