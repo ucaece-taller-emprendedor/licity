@@ -17,9 +17,10 @@ export function RequireAuth({ children }: { children?: ReactNode }) {
 
 /** Exige uno de los roles dados. Los usuarios suspendidos no entran; los pendientes ven un aviso. */
 export function RequireRole({ roles, children }: { roles: Rol[]; children?: ReactNode }) {
-  const { perfil, cargando } = useAuth()
+  const { usuario, perfil, cargando } = useAuth()
   if (cargando) return <Cargando />
-  if (!perfil) return <Navigate to="/app/ingresar" replace />
+  // Con sesión pero sin perfil (primer ingreso con Google desde "Ingresar"): a completarlo, no al login.
+  if (!perfil) return <Navigate to={usuario ? '/app/completar-perfil' : '/app/ingresar'} replace />
   if (!roles.includes(perfil.role)) return <Navigate to={panelDe(perfil.role)} replace />
   if (perfil.status === 'suspendido') return <Navigate to="/app/suspendido" replace />
   return children ?? <Outlet />
