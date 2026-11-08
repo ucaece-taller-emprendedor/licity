@@ -32,7 +32,12 @@ Usuarios demo (solo en local), contraseña `Demo-Clave-2026`: ver el `README.md`
 - Requiere el secreto de GitHub `FIREBASE_SERVICE_ACCOUNT` (ya cargado por la cátedra). Si hay que regenerarlo: Consola de Google Cloud → IAM → Cuentas de servicio → `github-deploy` → Claves → nueva clave JSON → pegarla como secreto del repo (Settings → Secrets and variables → Actions) y **borrar el archivo descargado**.
 
 ## 5. Estadísticas (Google Analytics)
-El sitio envía visitas a **Google Analytics 4** (landing `/`, app `/app` y admin `/admin` se distinguen por la ruta). Para verlas: entrar a https://analytics.google.com con la cuenta de Google del equipo → propiedad de Licity → *Informes → Participación → Páginas y pantallas* (filtrar por `/app` o `/admin`). Para sumar a más gente: Administrar → Administración de acceso a la propiedad. Es gratis. Si falta el ID de medición, el sitio simplemente no envía datos.
+El sitio ya trae el código de **Google Analytics 4** (gratis); solo falta conectarlo **una vez**:
+1. Entrar a https://analytics.google.com con la cuenta de Google del equipo → *Administrar* → *Crear* → *Propiedad* (nombre: Licity, zona horaria Argentina) → *Flujo de datos* → *Web* → URL @U@.
+2. Copiar el **ID de medición** (empieza con `G-`).
+3. Pegarlo en `.env.production` como `VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX` y publicar el cambio (rama `qa` → `prod`).
+4. Ver las visitas en *Informes → Participación → Páginas y pantallas*: `/` es la landing, `/app` la aplicación y `/admin` la administración. En el panel de admin, la sección **Estadísticas** explica lo mismo y enlaza a Google Analytics. Para sumar a más gente: *Administrar → Administración de acceso a la propiedad*.
+Si no hay ID, el sitio simplemente no envía datos.
 
 ## 6. Mails a usuarios
 Hoy el sistema envía por Firebase los mails de **recuperar contraseña**, con el nombre y los textos de Licity. Mails de bienvenida o notificaciones por evento requieren un servicio externo (p. ej. Resend, plan gratis) o Cloud Functions (plan Blaze, con tarjeta); no están activados para mantener el costo en cero.
