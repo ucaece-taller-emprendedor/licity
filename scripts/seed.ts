@@ -1,5 +1,5 @@
 /**
- * Datos de DEMO de Licity (todo marcado isDemo: true). Solo para los EMULADORES.
+ * Datos de DEMO de Licity (todo marcado isDemo: true). Por defecto corre contra los EMULADORES. Para producción: FIREBASE_PROJECT_ID=... GOOGLE_APPLICATION_CREDENTIALS=... npm run seed -- --produccion --yes
  *   1) npm run emuladores   (en otra terminal)
  *   2) npm run seed
  * Es idempotente: se puede correr varias veces.
@@ -41,11 +41,16 @@ export const USUARIOS_DEMO: Usuario[] = [
 
 const dias = (n: number) => new Date(Date.now() - n * 86_400_000)
 
-export async function sembrar() {
-  const { auth, db, esEmulador } = iniciarAdmin()
-  if (!esEmulador) throw new Error('El seed solo corre contra emuladores.')
+/** En producción NO se crean cuentas demo (tendrían contraseña pública): solo datos de ejemplo. */
+function usuariosDemoActivos() {
+  return process.argv.includes('--produccion') ? [] : USUARIOS_DEMO
+}
 
-  for (const u of USUARIOS_DEMO) {
+export async function sembrar() {
+  const { auth, db, esEmulador } = iniciarAdmin({ produccion: process.argv.includes('--produccion') })
+  if (!esEmulador && !process.argv.includes('--yes')) throw new Error('Para sembrar PRODUCCIÓN agregá --produccion --yes (en producción solo se cargan datos de ejemplo, sin cuentas demo).')
+
+  for (const u of usuariosDemoActivos()) {
     const datos = { email: u.email, displayName: u.displayName, password: CLAVE_DEMO, emailVerified: true }
     await auth.updateUser(u.uid, datos).catch(() => auth.createUser({ uid: u.uid, ...datos }))
     await auth.setCustomUserClaims(u.uid, u.role === 'admin' ? { admin: true } : {})
@@ -118,7 +123,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   sembrar()
     .then(() => {
       console.log('✔ Seed de demo listo (emuladores). Usuarios DEMO (clave pública de demo):')
-      for (const u of USUARIOS_DEMO) console.log(`  ${u.etiqueta.padEnd(40)} ${u.email}  /  ${CLAVE_DEMO}`)
+      for (const u of usuariosDemoActivos()) console.log(`  ${u.etiqueta.padEnd(40)} ${u.email}  /  ${CLAVE_DEMO}`)
     })
     .catch((e: unknown) => {
       console.error(`✖ ${e instanceof Error ? e.message : String(e)}`)
