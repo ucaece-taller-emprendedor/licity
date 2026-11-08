@@ -1,0 +1,41 @@
+name: Desplegar a Firebase Hosting
+
+# Al hacer merge a main se publica el sitio (Firebase Hosting, plan Spark: gratis, sin tarjeta).
+#
+# SECRETO NECESARIO: FIREBASE_SERVICE_ACCOUNT  (con el nombre exacto que le ponga la CLI)
+#   Lo crea y lo carga en GitHub automáticamente el comando:
+#       firebase init hosting:github
+#   (lo corre UNA vez el responsable del proyecto; no se crea ni se sube a mano).
+#   Ese comando también puede generar su propio workflow; si pasa, dejá este archivo y
+#   ajustá el nombre del secreto abajo para que coincida.
+#
+# Las reglas de Firestore NO se despliegan acá (esta acción solo publica Hosting):
+#   se despliegan con `npm run deploy:reglas` (ver README).
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  desplegar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build # lee la config pública de .env.production
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: live
+          projectId: ${{ vars.FIREBASE_PROJECT_ID || 'licity-mdp' }}

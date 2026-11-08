@@ -1,0 +1,454 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REGLAS DE SEGURIDAD DE LICITY — son la "validación del servidor" de esta app.
+// Todo lo que no está permitido acá, queda DENEGADO.
+//
+// Roles: pyme (publica obras) · contratista (oferta; necesita verificación del admin)
+//        · admin (custom claim `admin: true`, no se puede pedir desde la app).
+//
+// Colecciones:
+//   users/{uid}                    cuenta y estado (activo/suspendido) + verificación del contratista
+//   perfiles/{uid}                 datos de la empresa (PyME) o del contratista
+//   obras/{obraId}                 obras. Máquina de estados validada acá (ver más abajo)
+//   obras/{obraId}/novedades/{id}  seguimiento (cambios de estado, avances, notas). Solo se agrega
+//   ofertas/{obraId_uidContratista} una oferta por contratista y obra
+//   pagos/{obraId}                 REGISTRO DE PRUEBA del pago final y la comisión (sin pasarela)
+//   notificaciones/{id}            avisos dentro de la app
+//
+// Sin Cloud Functions (plan Spark): las operaciones que tocan varios documentos (adjudicar, ofertar,
+// confirmar) se hacen en un batch del cliente y estas reglas exigen, con getAfter()/existsAfter(),
+// que todas las partes sean consistentes.
+//
+// Máquina de estados de la obra:
+//   PUBLICADA → RECIBIENDO_OFERTAS (la primera oferta) → EVALUANDO (la PyME) → ADJUDICADA (la PyME)
+//   → EN_EJECUCION (el contratista adjudicado) → FINALIZADA (la PyME, tras el "terminé" del contratista)
+//   Cancelar: PyME desde PUBLICADA/RECIBIENDO_OFERTAS/EVALUANDO/ADJUDICADA; admin desde cualquier estado no final.
+// Si cambiás roles, estados o colecciones, cambialos acá, en src/config/ y en tests/rules.
+// ─────────────────────────────────────────────────────────────────────────────
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers generales ──────────────────────────────────────────────────
+    function signedIn() { return request.auth != null; }
+    // El rol admin se da con un custom claim (scripts/admin-dar.ts). Un usuario no puede ponérselo.
+    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function userDoc(uid) { return get(/databases/$(database)/documents/users/$(uid)).data; }
+    function hasUserDoc(uid) { return exists(/databases/$(database)/documents/users/$(uid)); }
+    function isActive() { return signedIn() && hasUserDoc(request.auth.uid) && userDoc(request.auth.uid).status == 'activo'; }
+    function hasRole(role) { return isActive() && userDoc(request.auth.uid).role == role; }
+    // Contratista activo Y verificado por el admin: único que puede ofertar y trabajar.
+    function esContratistaHabilitado(uid) {
+      return hasUserDoc(uid) && userDoc(uid).role == 'contratista' && userDoc(uid).status == 'activo' && userDoc(uid).verificacion == 'APROBADO';
+    }
+    function soyContratistaHabilitado() { return signedIn() && esContratistaHabilitado(request.auth.uid); }
+
+    function onlyKeys(keys) { return request.resource.data.keys().hasOnly(keys); }
+    function hasKeys(keys) { return request.resource.data.keys().hasAll(keys); }
+    function str(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+    function strONull(v, max) { return v == null || str(v, 1, max); }
+    function cambios() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    function cuitValido(v) { return v is string && v.matches('^[0-9]{2}-?[0-9]{8}-?[0-9]$'); }
+    function dineroValido(v) { return (v is int || v is float) && v > 0 && v < 100000000000; }
+
+    // ── Helpers de obras y ofertas ─────────────────────────────────────────
+    function rutaObra(id) { return /databases/$(database)/documents/obras/$(id); }
+    function rutaOferta(id) { return /databases/$(database)/documents/ofertas/$(id); }
+    function obra(id) { return get(rutaObra(id)).data; }
+    function obraDespues(id) { return getAfter(rutaObra(id)).data; }
+    function ofertaDespues(id) { return getAfter(rutaOferta(id)).data; }
+    function idOferta(obraId, uid) { return obraId + '_' + uid; }
+    function obraAbierta(o) { return o.estado in ['PUBLICADA', 'RECIBIENDO_OFERTAS']; }
+
+    // ── users/{uid} ────────────────────────────────────────────────────────
+    // Cada uno lee su cuenta; el admin lee y gestiona todas.
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+
+      // Alta: solo el propio usuario, solo pyme o contratista (NUNCA admin), con su perfil creado
+      // en el mismo batch. El contratista nace con verificación PENDIENTE: no puede aprobarse solo.
+      allow create: if isOwner(uid)
+        && request.resource.data.email == request.auth.token.email
+        && str(request.resource.data.displayName, 2, 80)
+        && request.resource.data.status == 'activo'
+        && request.resource.data.isDemo == false
+        && request.resource.data.createdAt == request.time
+        && existsAfter(/databases/$(database)/documents/perfiles/$(uid))
+        && (
+          (request.resource.data.role == 'pyme'
+            && onlyKeys(['email', 'displayName', 'role', 'status', 'isDemo', 'createdAt'])
+            && hasKeys(['email', 'displayName', 'role', 'status', 'isDemo', 'createdAt']))
+          || (request.resource.data.role == 'contratista'
+            && onlyKeys(['email', 'displayName', 'role', 'status', 'verificacion', 'isDemo', 'createdAt'])
+            && hasKeys(['email', 'displayName', 'role', 'status', 'verificacion', 'isDemo', 'createdAt'])
+            && request.resource.data.verificacion == 'PENDIENTE')
+        );
+
+      allow update:
+        // El dueño solo puede cambiar su nombre. role, status y verificacion están vedados.
+        if (isOwner(uid)
+            && cambios().hasOnly(['displayName'])
+            && str(request.resource.data.displayName, 2, 80))
+        // El contratista rechazado puede volver a pedir la revisión (RECHAZADO → PENDIENTE), nada más.
+        || (isOwner(uid)
+            && resource.data.role == 'contratista'
+            && resource.data.verificacion == 'RECHAZADO'
+            && cambios().hasOnly(['verificacion'])
+            && request.resource.data.verificacion == 'PENDIENTE')
+        // El admin suspende/reactiva y aprueba/rechaza contratistas. Nunca toca a otro admin ni cambia roles.
+        || (isAdmin()
+            && resource.data.role != 'admin'
+            && cambios().hasOnly(['status', 'verificacion', 'motivoRechazo'])
+            && request.resource.data.status in ['activo', 'suspendido']
+            && (!cambios().hasAny(['verificacion'])
+                || (resource.data.role == 'contratista' && request.resource.data.verificacion in ['APROBADO', 'RECHAZADO']))
+            && (request.resource.data.get('verificacion', null) != 'RECHAZADO' || str(request.resource.data.get('motivoRechazo', null), 5, 300))
+            && (request.resource.data.get('verificacion', null) != 'APROBADO' || !('motivoRechazo' in request.resource.data))
+            && (!cambios().hasAny(['motivoRechazo']) || cambios().hasAny(['verificacion'])));
+
+      allow delete: if false;
+    }
+
+    // ── perfiles/{uid} ─────────────────────────────────────────────────────
+    function perfilPymeValido(d) {
+      return d.keys().hasOnly(['nombreEmpresa', 'cuit', 'ciudad', 'telefono'])
+        && d.keys().hasAll(['nombreEmpresa', 'cuit', 'ciudad', 'telefono'])
+        && str(d.nombreEmpresa, 2, 120)
+        && (d.cuit == null || cuitValido(d.cuit))
+        && str(d.ciudad, 2, 80)
+        && (d.telefono == null || str(d.telefono, 6, 40));
+    }
+    function perfilContratistaValido(d) {
+      return d.keys().hasOnly(['nombreEmpresa', 'cuit', 'especialidad', 'ciudad', 'zona', 'descripcion', 'telefono', 'anios'])
+        && d.keys().hasAll(['nombreEmpresa', 'cuit', 'especialidad', 'ciudad', 'zona', 'descripcion', 'telefono', 'anios'])
+        && str(d.nombreEmpresa, 2, 120)
+        && cuitValido(d.cuit)
+        && str(d.especialidad, 2, 80)
+        && str(d.ciudad, 2, 80)
+        && strONull(d.zona, 160)
+        && strONull(d.descripcion, 1000)
+        && (d.telefono == null || str(d.telefono, 6, 40))
+        && (d.anios == null || (d.anios is int && d.anios >= 0 && d.anios <= 80));
+    }
+    function perfilValidoPara(rol, d) {
+      return (rol == 'pyme' && perfilPymeValido(d)) || (rol == 'contratista' && perfilContratistaValido(d));
+    }
+    match /perfiles/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      // Se crea junto con la cuenta (mismo batch); el rol sale del documento de usuario.
+      allow create: if isOwner(uid)
+        && existsAfter(/databases/$(database)/documents/users/$(uid))
+        && perfilValidoPara(getAfter(/databases/$(database)/documents/users/$(uid)).data.role, request.resource.data);
+      allow update: if isActive() && isOwner(uid)
+        && perfilValidoPara(userDoc(uid).role, request.resource.data);
+      allow delete: if false;
+    }
+
+    // ── obras/{obraId} ─────────────────────────────────────────────────────
+    function obraDatosValidos(d) {
+      return str(d.titulo, 5, 120)
+        && str(d.descripcion, 20, 3000)
+        && d.categoria in ['Reforma / ampliación', 'Obra nueva', 'Mantenimiento', 'Electricidad', 'Plomería y gas', 'Pintura',
+                           'Albañilería', 'Techos e impermeabilización', 'Climatización', 'Otro']
+        && str(d.ciudad, 2, 120)
+        && (d.fechaInicio == null || (d.fechaInicio is string && d.fechaInicio.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+        && (d.plazoDias == null || (d.plazoDias is int && d.plazoDias >= 1 && d.plazoDias <= 3650))
+        && (d.presupuesto == null || dineroValido(d.presupuesto));
+    }
+    function soyElCliente() { return hasRole('pyme') && resource.data.clienteId == request.auth.uid; }
+    function soyElContratista() { return soyContratistaHabilitado() && resource.data.contratistaId == request.auth.uid; }
+    function contratistaPuedeVer(obraId, o) {
+      return soyContratistaHabilitado()
+        && (obraAbierta(o) || o.contratistaId == request.auth.uid || exists(rutaOferta(idOferta(obraId, request.auth.uid))));
+    }
+
+    match /obras/{obraId} {
+      // La PyME ve sus obras; el contratista verificado ve las abiertas, las que ofertó o ganó; el admin todas.
+      allow read: if isAdmin() || isOwner(resource.data.clienteId) || contratistaPuedeVer(obraId, resource.data);
+
+      // Publicar: solo una PyME activa, a su nombre, siempre en estado PUBLICADA y sin adjudicación.
+      allow create: if hasRole('pyme')
+        && onlyKeys(['clienteId', 'clienteNombre', 'titulo', 'descripcion', 'categoria', 'ciudad', 'fechaInicio', 'plazoDias', 'presupuesto',
+                     'estado', 'avance', 'contratistaId', 'contratistaNombre', 'ofertaId', 'montoAdjudicado',
+                     'publicadaEn', 'adjudicadaEn', 'iniciadaEn', 'contratistaTerminoEn', 'finalizadaEn',
+                     'reportadaEn', 'motivoReporte', 'reportadaPor', 'motivoCancelacion', 'isDemo'])
+        && hasKeys(['clienteId', 'clienteNombre', 'titulo', 'descripcion', 'categoria', 'ciudad', 'fechaInicio', 'plazoDias', 'presupuesto',
+                    'estado', 'avance', 'contratistaId', 'contratistaNombre', 'ofertaId', 'montoAdjudicado',
+                    'publicadaEn', 'adjudicadaEn', 'iniciadaEn', 'contratistaTerminoEn', 'finalizadaEn',
+                    'reportadaEn', 'motivoReporte', 'reportadaPor', 'motivoCancelacion', 'isDemo'])
+        && request.resource.data.clienteId == request.auth.uid
+        && request.resource.data.clienteNombre == get(/databases/$(database)/documents/perfiles/$(request.auth.uid)).data.nombreEmpresa
+        && request.resource.data.estado == 'PUBLICADA'
+        && request.resource.data.avance == 0
+        && request.resource.data.contratistaId == null
+        && request.resource.data.contratistaNombre == null
+        && request.resource.data.ofertaId == null
+        && request.resource.data.montoAdjudicado == null
+        && request.resource.data.publicadaEn == request.time
+        && request.resource.data.adjudicadaEn == null
+        && request.resource.data.iniciadaEn == null
+        && request.resource.data.contratistaTerminoEn == null
+        && request.resource.data.finalizadaEn == null
+        && request.resource.data.reportadaEn == null
+        && request.resource.data.motivoReporte == null
+        && request.resource.data.reportadaPor == null
+        && request.resource.data.motivoCancelacion == null
+        && request.resource.data.isDemo == false
+        && obraDatosValidos(request.resource.data);
+
+      allow update:
+        // PyME: editar los datos mientras la obra todavía no recibió ofertas.
+        if (soyElCliente()
+            && resource.data.estado == 'PUBLICADA'
+            && cambios().hasOnly(['titulo', 'descripcion', 'categoria', 'ciudad', 'fechaInicio', 'plazoDias', 'presupuesto'])
+            && obraDatosValidos(request.resource.data))
+        // PyME: pasar a evaluación (deja de aceptar ofertas nuevas).
+        || (soyElCliente()
+            && resource.data.estado == 'RECIBIENDO_OFERTAS'
+            && cambios().hasOnly(['estado'])
+            && request.resource.data.estado == 'EVALUANDO')
+        // PyME: adjudicar. Exige, en el mismo batch, la oferta aceptada que coincide en contratista y monto,
+        // y que el contratista siga habilitado.
+        || (soyElCliente()
+            && resource.data.estado in ['RECIBIENDO_OFERTAS', 'EVALUANDO']
+            && cambios().hasOnly(['estado', 'contratistaId', 'contratistaNombre', 'ofertaId', 'montoAdjudicado', 'adjudicadaEn'])
+            && request.resource.data.estado == 'ADJUDICADA'
+            && request.resource.data.adjudicadaEn == request.time
+            && request.resource.data.ofertaId is string
+            && request.resource.data.ofertaId == idOferta(obraId, request.resource.data.contratistaId)
+            && get(rutaOferta(request.resource.data.ofertaId)).data.estado == 'PENDIENTE'
+            && get(rutaOferta(request.resource.data.ofertaId)).data.obraId == obraId
+            && ofertaDespues(request.resource.data.ofertaId).estado == 'ACEPTADA'
+            && ofertaDespues(request.resource.data.ofertaId).monto == request.resource.data.montoAdjudicado
+            && ofertaDespues(request.resource.data.ofertaId).contratistaNombre == request.resource.data.contratistaNombre
+            && esContratistaHabilitado(request.resource.data.contratistaId))
+        // PyME: cancelar (con motivo opcional) antes de que empiece la ejecución.
+        || (soyElCliente()
+            && resource.data.estado in ['PUBLICADA', 'RECIBIENDO_OFERTAS', 'EVALUANDO', 'ADJUDICADA']
+            && cambios().hasOnly(['estado', 'motivoCancelacion'])
+            && request.resource.data.estado == 'CANCELADA'
+            && strONull(request.resource.data.motivoCancelacion, 300))
+        // PyME: confirmar la finalización (solo si el contratista ya marcó "terminada"); registra el pago de prueba.
+        || (soyElCliente()
+            && resource.data.estado == 'EN_EJECUCION'
+            && resource.data.contratistaTerminoEn != null
+            && cambios().hasOnly(['estado', 'avance', 'finalizadaEn'])
+            && request.resource.data.estado == 'FINALIZADA'
+            && request.resource.data.avance == 100
+            && request.resource.data.finalizadaEn == request.time
+            && existsAfter(/databases/$(database)/documents/pagos/$(obraId))
+            && getAfter(/databases/$(database)/documents/pagos/$(obraId)).data.montoFinal == resource.data.montoAdjudicado)
+        // Contratista (verificado) que oferta por primera vez: PUBLICADA → RECIBIENDO_OFERTAS, con su oferta en el batch.
+        || (soyContratistaHabilitado()
+            && resource.data.estado == 'PUBLICADA'
+            && cambios().hasOnly(['estado'])
+            && request.resource.data.estado == 'RECIBIENDO_OFERTAS'
+            && existsAfter(rutaOferta(idOferta(obraId, request.auth.uid)))
+            && ofertaDespues(idOferta(obraId, request.auth.uid)).estado == 'PENDIENTE')
+        // Contratista adjudicado: iniciar la ejecución.
+        || (soyElContratista()
+            && resource.data.estado == 'ADJUDICADA'
+            && cambios().hasOnly(['estado', 'iniciadaEn'])
+            && request.resource.data.estado == 'EN_EJECUCION'
+            && request.resource.data.iniciadaEn == request.time)
+        // Contratista adjudicado: informar avance (solo hacia adelante y nunca 100: para eso está "terminé").
+        || (soyElContratista()
+            && resource.data.estado == 'EN_EJECUCION'
+            && resource.data.contratistaTerminoEn == null
+            && cambios().hasOnly(['avance'])
+            && request.resource.data.avance is int
+            && request.resource.data.avance >= resource.data.avance
+            && request.resource.data.avance < 100)
+        // Contratista adjudicado: marcar la obra como terminada (la PyME debe confirmarla).
+        || (soyElContratista()
+            && resource.data.estado == 'EN_EJECUCION'
+            && resource.data.contratistaTerminoEn == null
+            && cambios().hasOnly(['avance', 'contratistaTerminoEn'])
+            && request.resource.data.avance == 100
+            && request.resource.data.contratistaTerminoEn == request.time)
+        // Contratista verificado: reportar una obra que ve (moderación).
+        || (soyContratistaHabilitado()
+            && contratistaPuedeVer(obraId, resource.data)
+            && resource.data.reportadaEn == null
+            && cambios().hasOnly(['reportadaEn', 'motivoReporte', 'reportadaPor'])
+            && request.resource.data.reportadaEn == request.time
+            && request.resource.data.reportadaPor == request.auth.uid
+            && str(request.resource.data.motivoReporte, 10, 500))
+        // Admin: resolver un reporte.
+        || (isAdmin()
+            && resource.data.reportadaEn != null
+            && cambios().hasOnly(['reportadaEn', 'motivoReporte', 'reportadaPor'])
+            && request.resource.data.reportadaEn == null
+            && request.resource.data.motivoReporte == null
+            && request.resource.data.reportadaPor == null)
+        // Admin: cancelar por moderación cualquier obra que no haya terminado.
+        || (isAdmin()
+            && !(resource.data.estado in ['FINALIZADA', 'CANCELADA'])
+            && cambios().hasOnly(['estado', 'motivoCancelacion'])
+            && request.resource.data.estado == 'CANCELADA'
+            && str(request.resource.data.motivoCancelacion, 5, 300));
+
+      allow delete: if false;
+
+      // ── Seguimiento de la obra: solo se agregan novedades, no se editan ni se borran ──
+      match /novedades/{novedadId} {
+        allow read: if isAdmin() || isOwner(obra(obraId).clienteId) || isOwner(obra(obraId).contratistaId);
+        allow create: if isActive()
+          && (obra(obraId).clienteId == request.auth.uid || obra(obraId).contratistaId == request.auth.uid)
+          && onlyKeys(['tipo', 'estadoHacia', 'avance', 'mensaje', 'autorId', 'autorNombre', 'creadaEn'])
+          && hasKeys(['tipo', 'estadoHacia', 'avance', 'mensaje', 'autorId', 'autorNombre', 'creadaEn'])
+          && request.resource.data.autorId == request.auth.uid
+          && request.resource.data.autorNombre == userDoc(request.auth.uid).displayName
+          && request.resource.data.creadaEn == request.time
+          && strONull(request.resource.data.mensaje, 1000)
+          && (
+            // Un cambio de estado tiene que coincidir con el estado real de la obra tras el batch.
+            (request.resource.data.tipo == 'ESTADO'
+              && request.resource.data.avance == null
+              && request.resource.data.estadoHacia == obraDespues(obraId).estado)
+            || (request.resource.data.tipo == 'AVANCE'
+              && request.resource.data.estadoHacia == null
+              && request.resource.data.avance == obraDespues(obraId).avance)
+            || (request.resource.data.tipo == 'NOTA'
+              && request.resource.data.estadoHacia == null
+              && request.resource.data.avance == null
+              && request.resource.data.mensaje != null)
+          );
+        allow update, delete: if false;
+      }
+    }
+
+    // ── ofertas/{obraId}_{uidContratista} ──────────────────────────────────
+    // Un id determinístico garantiza una sola oferta por contratista y obra.
+    function ofertaDatosValidos(d) {
+      return dineroValido(d.monto)
+        && str(d.descripcion, 20, 3000)
+        && (d.plazoDias is int && d.plazoDias >= 1 && d.plazoDias <= 3650)
+        && strONull(d.notas, 1000);
+    }
+    match /ofertas/{ofertaId} {
+      // Las ve su autor, la PyME dueña de la obra y el admin.
+      allow read: if isAdmin() || isOwner(resource.data.contratistaId) || isOwner(resource.data.clienteId);
+
+      allow create: if soyContratistaHabilitado()
+        && ofertaId == idOferta(request.resource.data.obraId, request.auth.uid)
+        && onlyKeys(['obraId', 'obraTitulo', 'clienteId', 'contratistaId', 'contratistaNombre', 'especialidad', 'ciudad', 'anios',
+                     'monto', 'descripcion', 'plazoDias', 'notas', 'estado', 'creadaEn', 'isDemo'])
+        && hasKeys(['obraId', 'obraTitulo', 'clienteId', 'contratistaId', 'contratistaNombre', 'especialidad', 'ciudad', 'anios',
+                    'monto', 'descripcion', 'plazoDias', 'notas', 'estado', 'creadaEn', 'isDemo'])
+        && request.resource.data.contratistaId == request.auth.uid
+        && request.resource.data.estado == 'PENDIENTE'
+        && request.resource.data.creadaEn == request.time
+        && request.resource.data.isDemo == false
+        // Datos de la obra copiados tal cual (no se puede ofertar "a nombre" de otra PyME).
+        && request.resource.data.clienteId == obra(request.resource.data.obraId).clienteId
+        && request.resource.data.obraTitulo == obra(request.resource.data.obraId).titulo
+        // Datos del contratista copiados de su perfil.
+        && request.resource.data.contratistaNombre == get(/databases/$(database)/documents/perfiles/$(request.auth.uid)).data.nombreEmpresa
+        && request.resource.data.especialidad == get(/databases/$(database)/documents/perfiles/$(request.auth.uid)).data.especialidad
+        && request.resource.data.ciudad == get(/databases/$(database)/documents/perfiles/$(request.auth.uid)).data.ciudad
+        && request.resource.data.anios == get(/databases/$(database)/documents/perfiles/$(request.auth.uid)).data.anios
+        && ofertaDatosValidos(request.resource.data)
+        // La obra tiene que estar abierta; si es la primera oferta, el batch la pasa a RECIBIENDO_OFERTAS.
+        && (obra(request.resource.data.obraId).estado == 'RECIBIENDO_OFERTAS'
+            || (obra(request.resource.data.obraId).estado == 'PUBLICADA'
+                && obraDespues(request.resource.data.obraId).estado == 'RECIBIENDO_OFERTAS'));
+
+      allow update:
+        // Contratista: retirar su oferta pendiente mientras la obra siga sin adjudicar.
+        if (isOwner(resource.data.contratistaId)
+            && soyContratistaHabilitado()
+            && resource.data.estado == 'PENDIENTE'
+            && cambios().hasOnly(['estado'])
+            && request.resource.data.estado == 'RETIRADA'
+            && obra(resource.data.obraId).estado in ['PUBLICADA', 'RECIBIENDO_OFERTAS', 'EVALUANDO'])
+        // Contratista: volver a ofertar tras haber retirado (solo con la obra abierta).
+        || (isOwner(resource.data.contratistaId)
+            && soyContratistaHabilitado()
+            && resource.data.estado == 'RETIRADA'
+            && cambios().hasOnly(['estado', 'monto', 'descripcion', 'plazoDias', 'notas', 'creadaEn'])
+            && request.resource.data.estado == 'PENDIENTE'
+            && request.resource.data.creadaEn == request.time
+            && ofertaDatosValidos(request.resource.data)
+            && obra(resource.data.obraId).estado == 'RECIBIENDO_OFERTAS')
+        // PyME: aceptar (la obra queda ADJUDICADA a esta oferta en el mismo batch).
+        || (hasRole('pyme')
+            && isOwner(resource.data.clienteId)
+            && resource.data.estado == 'PENDIENTE'
+            && cambios().hasOnly(['estado'])
+            && request.resource.data.estado == 'ACEPTADA'
+            && obraDespues(resource.data.obraId).estado == 'ADJUDICADA'
+            && obraDespues(resource.data.obraId).ofertaId == ofertaId)
+        // PyME: las demás pasan a "no seleccionada" al adjudicar o cancelar.
+        || (hasRole('pyme')
+            && isOwner(resource.data.clienteId)
+            && resource.data.estado == 'PENDIENTE'
+            && cambios().hasOnly(['estado'])
+            && request.resource.data.estado == 'RECHAZADA'
+            && ((obraDespues(resource.data.obraId).estado == 'ADJUDICADA' && obraDespues(resource.data.obraId).ofertaId != ofertaId)
+                || obraDespues(resource.data.obraId).estado == 'CANCELADA'))
+        // PyME o admin: al cancelar la obra también cae la oferta ya aceptada.
+        || (((hasRole('pyme') && isOwner(resource.data.clienteId)) || isAdmin())
+            && resource.data.estado in ['PENDIENTE', 'ACEPTADA']
+            && cambios().hasOnly(['estado'])
+            && request.resource.data.estado == 'RECHAZADA'
+            && obraDespues(resource.data.obraId).estado == 'CANCELADA');
+
+      allow delete: if false;
+    }
+
+    // ── pagos/{obraId} — REGISTRO DE PRUEBA (no hay pasarela de pago) ───────
+    match /pagos/{obraId} {
+      allow read: if isAdmin() || isOwner(resource.data.clienteId) || isOwner(resource.data.contratistaId);
+      // Lo crea la PyME al confirmar la obra, una sola vez (el id es el de la obra), con la comisión de referencia 1,5 %.
+      allow create: if hasRole('pyme')
+        && onlyKeys(['obraId', 'clienteId', 'contratistaId', 'montoFinal', 'tasaComision', 'comisionMonto', 'estado', 'finalizadaEn', 'isDemo'])
+        && hasKeys(['obraId', 'clienteId', 'contratistaId', 'montoFinal', 'tasaComision', 'comisionMonto', 'estado', 'finalizadaEn', 'isDemo'])
+        && request.resource.data.obraId == obraId
+        && request.resource.data.clienteId == request.auth.uid
+        && obra(obraId).clienteId == request.auth.uid
+        && obra(obraId).estado == 'EN_EJECUCION'
+        && obraDespues(obraId).estado == 'FINALIZADA'
+        && request.resource.data.contratistaId == obra(obraId).contratistaId
+        && request.resource.data.montoFinal == obra(obraId).montoAdjudicado
+        && request.resource.data.tasaComision == 0.015
+        && math.abs(request.resource.data.comisionMonto - request.resource.data.montoFinal * 0.015) <= 0.01
+        && request.resource.data.estado == 'REGISTRO_DE_PRUEBA'
+        && request.resource.data.finalizadaEn == request.time
+        && request.resource.data.isDemo == false;
+      allow update, delete: if false;
+    }
+
+    // ── notificaciones/{id} ────────────────────────────────────────────────
+    // Sin Cloud Functions, el cliente escribe el aviso; las reglas exigen que quien avisa y quien recibe
+    // sean parte de la misma obra (o que avise el admin), para que no se pueda mandar spam a cualquiera.
+    function sonPartesDeLaObra(obraId, emisor, receptor) {
+      return (obra(obraId).clienteId == emisor
+              && (obra(obraId).contratistaId == receptor || existsAfter(rutaOferta(idOferta(obraId, receptor)))))
+          || (obra(obraId).clienteId == receptor
+              && (obra(obraId).contratistaId == emisor || existsAfter(rutaOferta(idOferta(obraId, emisor)))));
+    }
+    match /notificaciones/{id} {
+      allow read: if isOwner(resource.data.usuarioId);
+      allow create: if (isActive() || isAdmin())
+        && onlyKeys(['usuarioId', 'titulo', 'cuerpo', 'href', 'obraId', 'leida', 'creadaEn'])
+        && hasKeys(['usuarioId', 'titulo', 'cuerpo', 'href', 'obraId', 'leida', 'creadaEn'])
+        && str(request.resource.data.usuarioId, 1, 128)
+        && str(request.resource.data.titulo, 1, 120)
+        && strONull(request.resource.data.cuerpo, 300)
+        && (request.resource.data.href == null || (str(request.resource.data.href, 1, 200) && request.resource.data.href.matches('^/app/.*')))
+        && request.resource.data.leida == false
+        && request.resource.data.creadaEn == request.time
+        && (isAdmin()
+            || (request.resource.data.obraId is string
+                && request.resource.data.usuarioId != request.auth.uid
+                && sonPartesDeLaObra(request.resource.data.obraId, request.auth.uid, request.resource.data.usuarioId)));
+      // El destinatario solo puede marcarla como leída.
+      allow update: if isOwner(resource.data.usuarioId)
+        && cambios().hasOnly(['leida'])
+        && request.resource.data.leida == true;
+      allow delete: if false;
+    }
+  }
+}

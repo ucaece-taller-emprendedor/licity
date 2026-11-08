@@ -1,0 +1,47 @@
+name: Dar admin
+
+# Otorga el custom claim `admin: true` a una cuenta que ya existe (la persona debe haberse
+# registrado antes). Se corre a mano: Actions → "Dar admin" → Run workflow → email.
+#
+# Requisitos (los configura el responsable del proyecto, ver README → "Administradores"):
+#   • Variable de repositorio  FIREBASE_PROJECT_ID  = id del proyecto Firebase.
+#   • Secreto  FIREBASE_ADMIN_SA_JSON  = clave JSON de una cuenta de servicio que tenga
+#     SOLO estos roles: "Administrador de Firebase Authentication" (roles/firebaseauth.admin)
+#     y "Usuario de Cloud Datastore" (roles/datastore.user).
+#   • Si la organización bloquea las claves JSON (política iam.disableServiceAccountKeyCreation),
+#     usá Workload Identity Federation: reemplazá `credentials_json` por
+#     `workload_identity_provider` + `service_account` (ver README).
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: Email de la cuenta que será administradora
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write # solo se usa con Workload Identity Federation
+
+concurrency: dar-admin
+
+jobs:
+  dar-admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_ADMIN_SA_JSON }}
+      - name: Otorgar admin
+        run: npm run admin:dar:prod -- "$EMAIL"
+        env:
+          EMAIL: ${{ inputs.email }}
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
